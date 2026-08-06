@@ -17,3 +17,6 @@ db.sqlite3
 
 # Static files (collectstatic output)
 staticfiles/
+
+# Environment-specific CA certificates
+deploy/certs/*.crt

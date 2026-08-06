@@ -5,9 +5,15 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq-dev gcc && \
-    rm -rf /var/lib/apt/lists/*
+# Поддержка корпоративных / прокси CA-сертификатов: положите .crt в deploy/certs/
+COPY deploy/certs/ /usr/local/share/extra-ca/
+RUN for f in /usr/local/share/extra-ca/*.crt; do \
+        [ -f "$f" ] || continue; \
+        cat "$f" >> /etc/ssl/certs/ca-certificates.crt; \
+        printf '\n' >> /etc/ssl/certs/ca-certificates.crt; \
+    done
+ENV PIP_CERT=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
