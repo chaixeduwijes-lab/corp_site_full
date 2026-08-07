@@ -2,13 +2,17 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from .forms import ContactForm
-from .models import Category
+from .forms import ContactForm, QuizForm
+from .models import Category, ContactRequest, Partner, Project
+from .notifications import notify_manager
 
 
 def index(request):
-    categories = Category.objects.all()[:6]
-    return render(request, 'catalog/index.html', {'categories': categories})
+    return render(request, 'catalog/index.html', {
+        'categories': Category.objects.all()[:6],
+        'partners': Partner.objects.all(),
+        'projects': Project.objects.filter(is_published=True)[:3],
+    })
 
 
 def equipment_list(request):
@@ -22,6 +26,7 @@ def equipment_detail(request, slug):
     category = get_object_or_404(Category, slug=slug)
     return render(request, 'catalog/equipment_detail.html', {
         'category': category,
+        'projects': category.projects.filter(is_published=True)[:3],
     })
 
 
@@ -29,11 +34,35 @@ def services(request):
     return render(request, 'catalog/services.html')
 
 
+def projects_list(request):
+    return render(request, 'catalog/projects.html', {
+        'projects': Project.objects.filter(is_published=True),
+    })
+
+
+def calculator(request):
+    if request.method == 'POST':
+        form = QuizForm(request.POST)
+        if form.is_valid():
+            contact = ContactRequest.objects.create(
+                name=form.cleaned_data['name'],
+                phone=form.cleaned_data['phone'],
+                message=form.build_message(),
+                source=ContactRequest.Source.QUIZ,
+            )
+            notify_manager(contact)
+            return redirect('contact_success')
+    else:
+        form = QuizForm()
+    return render(request, 'catalog/calculator.html', {'form': form})
+
+
 def contacts(request):
     if request.method == 'POST':
         form = ContactForm(request.POST)
         if form.is_valid():
-            form.save()
+            contact = form.save()
+            notify_manager(contact)
             return redirect('contact_success')
     else:
         form = ContactForm()
@@ -51,7 +80,10 @@ def robots_txt(request):
 
 
 def sitemap_xml(request):
-    static_names = ['index', 'equipment_list', 'services', 'contacts']
+    static_names = [
+        'index', 'equipment_list', 'services', 'projects', 'calculator',
+        'contacts',
+    ]
     urls = [request.build_absolute_uri(reverse(name)) for name in static_names]
     urls += [
         request.build_absolute_uri(

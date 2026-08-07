@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Наши работы — СпецМонтаж{% endblock %}
+{% block meta_description %}Выполненные объекты СпецМонтаж: видеонаблюдение, СКУД, ограждения. Реальные кейсы с описанием решений.{% endblock %}
+
+{% block content %}
+<h1 class="fw-bold mb-2">Наши работы</h1>
+<p class="text-muted mb-4">Реальные объекты, на которых мы проектировали и монтировали системы безопасности.</p>
+
+<div class="row g-4">
+    {% for project in projects %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm card-hover overflow-hidden">
+            {% if project.image %}
+            <img src="{{ project.image.url }}" alt="{{ project.title }}" class="project-img">
+            {% else %}
+            <div class="project-placeholder">
+                <i class="bi {{ project.category.icon|default:'bi-building' }}"></i>
+            </div>
+            {% endif %}
+            <div class="card-body p-4">
+                {% if project.object_type %}
+                <span class="badge bg-primary bg-opacity-10 text-primary mb-2">{{ project.object_type }}</span>
+                {% endif %}
+                <h5 class="fw-bold">{{ project.title }}</h5>
+                <p class="text-muted small mb-2">{{ project.description }}</p>
+                {% if project.result_items %}
+                <ul class="text-muted small ps-3 mb-2">
+                    {% for item in project.result_items %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if project.completed_at %}
+                <div class="text-muted small"><i class="bi bi-calendar-check me-1"></i>{{ project.completed_at|date:"F Y" }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">Кейсы скоро появятся.</div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="bg-light rounded-4 p-5 text-center mt-5">
+    <h3 class="fw-bold mb-3">Хотите такой же результат?</h3>
+    <p class="text-muted mb-4">Рассчитайте стоимость системы для вашего объекта за 1 минуту</p>
+    <a href="{% url 'calculator' %}" class="btn btn-primary btn-lg">
+        <i class="bi bi-calculator me-2"></i>Рассчитать стоимость
+    </a>
+</div>
+{% endblock %}

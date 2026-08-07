@@ -39,11 +39,34 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm bg-light">
             <div class="card-body p-4">
+                {% if category.price_from %}
+                <div class="price-from fs-5 mb-2">Монтаж — от {{ category.price_from }} ₽</div>
+                <p class="text-muted small">Точная стоимость зависит от объекта — рассчитайте за 1 минуту.</p>
+                <a href="{% url 'calculator' %}" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-calculator me-1"></i>Рассчитать стоимость
+                </a>
+                <a href="{% url 'contacts' %}" class="btn btn-outline-primary w-100">Задать вопрос</a>
+                {% else %}
                 <h5 class="fw-bold mb-3"><i class="bi bi-chat-dots me-2"></i>Заинтересовало?</h5>
                 <p class="text-muted small">Оставьте заявку, и наш менеджер подберёт оптимальное решение для вашего объекта.</p>
                 <a href="{% url 'contacts' %}" class="btn btn-primary w-100">Оставить заявку</a>
+                {% endif %}
             </div>
         </div>
+        {% if projects %}
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-body p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-briefcase me-2"></i>Примеры наших работ</h6>
+                {% for project in projects %}
+                <div class="{% if not forloop.last %}border-bottom pb-2 mb-2{% endif %}">
+                    <div class="fw-semibold small">{{ project.title }}</div>
+                    <div class="text-muted small">{{ project.object_type }}</div>
+                </div>
+                {% endfor %}
+                <a href="{% url 'projects' %}" class="btn btn-sm btn-outline-primary mt-3 w-100">Все работы</a>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

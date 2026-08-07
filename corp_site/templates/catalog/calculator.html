@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Калькулятор стоимости — СпецМонтаж{% endblock %}
+{% block meta_description %}Рассчитайте стоимость системы безопасности для вашего объекта за 1 минуту: ответьте на 4 вопроса и получите предложение.{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h1 class="fw-bold mb-2">Рассчитайте стоимость системы</h1>
+        <p class="text-muted mb-4">Ответьте на 4 вопроса — подготовим предложение под ваш объект и перезвоним с расчётом.</p>
+
+        {% if form.errors %}
+        <div class="alert alert-danger">Проверьте заполнение: все шаги обязательны.</div>
+        {% endif %}
+
+        <div class="progress quiz-progress mb-4">
+            <div class="progress-bar" id="quizBar" role="progressbar" style="width: 25%"></div>
+        </div>
+
+        <form method="post" id="quizForm" class="card border-0 shadow-sm p-4">
+            {% csrf_token %}
+
+            <fieldset class="quiz-step active" data-step="1">
+                <legend class="fw-bold fs-5 mb-3">1. Какой у вас объект?</legend>
+                <div class="quiz-options">{{ form.object_type }}</div>
+            </fieldset>
+
+            <fieldset class="quiz-step" data-step="2">
+                <legend class="fw-bold fs-5 mb-3">2. Какие системы нужны?</legend>
+                <p class="text-muted small">Можно выбрать несколько</p>
+                <div class="quiz-options">{{ form.systems }}</div>
+            </fieldset>
+
+            <fieldset class="quiz-step" data-step="3">
+                <legend class="fw-bold fs-5 mb-3">3. Площадь объекта?</legend>
+                <div class="quiz-options">{{ form.area }}</div>
+            </fieldset>
+
+            <fieldset class="quiz-step" data-step="4">
+                <legend class="fw-bold fs-5 mb-3">4. Куда отправить расчёт?</legend>
+                <div class="mb-3">
+                    <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">Имя <span class="text-danger">*</span></label>
+                    {{ form.name }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.phone.id_for_label }}" class="form-label fw-semibold">Телефон <span class="text-danger">*</span></label>
+                    {{ form.phone }}
+                </div>
+            </fieldset>
+
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-secondary" id="quizPrev" hidden>
+                    <i class="bi bi-arrow-left me-1"></i>Назад
+                </button>
+                <button type="button" class="btn btn-primary ms-auto" id="quizNext">
+                    Далее<i class="bi bi-arrow-right ms-1"></i>
+                </button>
+                <button type="submit" class="btn btn-success ms-auto" id="quizSubmit" hidden>
+                    <i class="bi bi-send me-1"></i>Получить расчёт
+                </button>
+            </div>
+        </form>
+
+        <p class="text-muted small text-center mt-3">
+            <i class="bi bi-shield-check me-1"></i>Ваши данные используются только для подготовки расчёта
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var steps = Array.from(document.querySelectorAll('.quiz-step'));
+    var bar = document.getElementById('quizBar');
+    var prev = document.getElementById('quizPrev');
+    var next = document.getElementById('quizNext');
+    var submit = document.getElementById('quizSubmit');
+    var current = 0;
+
+    function show(i) {
+        steps.forEach(function (s, idx) { s.classList.toggle('active', idx === i); });
+        bar.style.width = ((i + 1) / steps.length * 100) + '%';
+        prev.hidden = i === 0;
+        next.hidden = i === steps.length - 1;
+        submit.hidden = i !== steps.length - 1;
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function stepValid(i) {
+        var step = steps[i];
+        var radios = step.querySelectorAll('input[type=radio]');
+        if (radios.length) {
+            return Array.from(radios).some(function (r) { return r.checked; });
+        }
+        var checks = step.querySelectorAll('input[type=checkbox]');
+        if (checks.length) {
+            return Array.from(checks).some(function (c) { return c.checked; });
+        }
+        return Array.from(step.querySelectorAll('input')).every(function (inp) {
+            return inp.value.trim() !== '';
+        });
+    }
+
+    next.addEventListener('click', function () {
+        if (!stepValid(current)) {
+            steps[current].classList.add('border-danger');
+            setTimeout(function () { steps[current].classList.remove('border-danger'); }, 600);
+            return;
+        }
+        current = Math.min(current + 1, steps.length - 1);
+        show(current);
+    });
+    prev.addEventListener('click', function () {
+        current = Math.max(current - 1, 0);
+        show(current);
+    });
+    show(0);
+})();
+</script>
+{% endblock %}

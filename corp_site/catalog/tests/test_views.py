@@ -1,7 +1,8 @@
-from django.test import TestCase
+from django.core import mail
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from catalog.models import Category, ContactRequest
+from catalog.models import Category, ContactRequest, Partner, Project
 
 
 class IndexViewTest(TestCase):
@@ -103,6 +104,113 @@ class ContactSuccessViewTest(TestCase):
         response = self.client.get(reverse('contact_success'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Заявка успешно отправлена')
+
+
+class ProjectsViewTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.project = Project.objects.create(
+            title='Складской комплекс',
+            slug='sklad',
+            object_type='Склад',
+            description='Задача',
+            result='32 камеры\nСервер',
+            is_published=True,
+        )
+        Project.objects.create(
+            title='Черновик', slug='draft', description='-', is_published=False,
+        )
+
+    def test_projects_page_loads(self):
+        response = self.client.get(reverse('projects'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Складской комплекс')
+        self.assertContains(response, '32 камеры')
+
+    def test_unpublished_hidden(self):
+        response = self.client.get(reverse('projects'))
+        self.assertNotContains(response, 'Черновик')
+
+
+class CalculatorViewTest(TestCase):
+    def test_calculator_page_loads(self):
+        response = self.client.get(reverse('calculator'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Рассчитайте стоимость')
+
+    def test_submit_valid_quiz(self):
+        response = self.client.post(reverse('calculator'), {
+            'object_type': 'Офис',
+            'systems': ['Видеонаблюдение', 'СКУД (контроль доступа)'],
+            'area': '100–500 м²',
+            'name': 'Пётр',
+            'phone': '+7 900 000 00 00',
+        })
+        self.assertRedirects(response, reverse('contact_success'))
+        req = ContactRequest.objects.get()
+        self.assertEqual(req.source, ContactRequest.Source.QUIZ)
+        self.assertIn('Видеонаблюдение', req.message)
+        self.assertIn('Офис', req.message)
+
+    def test_submit_incomplete_quiz(self):
+        response = self.client.post(reverse('calculator'), {
+            'object_type': 'Офис',
+            'name': 'Пётр',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ContactRequest.objects.count(), 0)
+
+
+class PriceDisplayTest(TestCase):
+    def test_price_from_shown(self):
+        Category.objects.create(
+            name='СВН', slug='svn', description='-', price_from=35000, order=1,
+        )
+        response = self.client.get(reverse('equipment_list'))
+        self.assertContains(response, 'от 35000')
+
+
+class PartnersDisplayTest(TestCase):
+    def test_partners_on_index(self):
+        Partner.objects.create(name='Hikvision', order=1)
+        response = self.client.get(reverse('index'))
+        self.assertContains(response, 'Hikvision')
+
+
+@override_settings(MANAGER_EMAIL='manager@example.com')
+class EmailNotificationTest(TestCase):
+    def test_email_sent_on_contact(self):
+        self.client.post(reverse('contacts'), {
+            'name': 'Иван',
+            'email': 'ivan@example.com',
+            'phone': '',
+            'message': 'Вопрос по СКУД',
+        })
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Иван', mail.outbox[0].subject)
+        self.assertIn('Вопрос по СКУД', mail.outbox[0].body)
+
+
+class ContactFormValidationTest(TestCase):
+    def test_requires_phone_or_email(self):
+        response = self.client.post(reverse('contacts'), {
+            'name': 'Иван',
+            'email': '',
+            'phone': '',
+            'message': 'Сообщение без контактов',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ContactRequest.objects.count(), 0)
+
+    def test_phone_only_is_enough(self):
+        response = self.client.post(reverse('contacts'), {
+            'name': 'Иван',
+            'email': '',
+            'phone': '+7 900 000 00 00',
+            'message': 'Только телефон',
+        })
+        self.assertRedirects(response, reverse('contact_success'))
+        self.assertEqual(ContactRequest.objects.count(), 1)
 
 
 class SeoViewsTest(TestCase):

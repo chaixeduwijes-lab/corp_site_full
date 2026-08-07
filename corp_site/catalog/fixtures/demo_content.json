@@ -1,0 +1,80 @@
+[
+  {
+    "model": "catalog.project",
+    "pk": 1,
+    "fields": {
+      "title": "Складской комплекс, 4 500 м²",
+      "slug": "sklad-4500",
+      "object_type": "Складской комплекс",
+      "category": 2,
+      "description": "Заказчику требовался круглосуточный видеоконтроль территории и периметра, фиксация всех транспортных средств на въезде и интеграция с пропускной системой.",
+      "result": "32 IP-камеры Full HD по периметру и в зонах хранения\nСервер видеонаблюдения с архивом 30 суток\nРаспознавание автомобильных номеров на КПП\nИнтеграция со СКУД: шлагбаум открывается по распознанному номеру",
+      "image": "",
+      "completed_at": "2026-05-20",
+      "is_published": true,
+      "order": 1
+    }
+  },
+  {
+    "model": "catalog.project",
+    "pk": 2,
+    "fields": {
+      "title": "Офисный центр, 3 этажа",
+      "slug": "ofis-3-etazha",
+      "object_type": "Офисное здание",
+      "category": 1,
+      "description": "Организация контроля доступа для 250 сотрудников и арендаторов: разграничение зон, учёт рабочего времени, гостевые пропуска.",
+      "result": "Турникеты на входной группе\nСчитыватели карт на 18 дверях\nМодуль учёта рабочего времени\nГостевые пропуска с автоматическим аннулированием",
+      "image": "",
+      "completed_at": "2026-03-14",
+      "is_published": true,
+      "order": 2
+    }
+  },
+  {
+    "model": "catalog.project",
+    "pk": 3,
+    "fields": {
+      "title": "Коттеджный посёлок «Сосновый бор»",
+      "slug": "kp-sosnovy-bor",
+      "object_type": "Коттеджный посёлок",
+      "category": 8,
+      "description": "Комплексное ограждение периметра посёлка с автоматическими воротами, КПП и видеонаблюдением въездной группы.",
+      "result": "1 200 м периметрального ограждения\nАвтоматические откатные ворота с GSM-модулем\nМодульный пост охраны с санузлом и отоплением\nВидеодомофония на 46 домовладений",
+      "image": "",
+      "completed_at": "2025-11-02",
+      "is_published": true,
+      "order": 3
+    }
+  },
+  {
+    "model": "catalog.partner",
+    "pk": 1,
+    "fields": {"name": "Hikvision", "logo": "", "url": "", "order": 1}
+  },
+  {
+    "model": "catalog.partner",
+    "pk": 2,
+    "fields": {"name": "Dahua", "logo": "", "url": "", "order": 2}
+  },
+  {
+    "model": "catalog.partner",
+    "pk": 3,
+    "fields": {"name": "TRASSIR", "logo": "", "url": "", "order": 3}
+  },
+  {
+    "model": "catalog.partner",
+    "pk": 4,
+    "fields": {"name": "Ajax Systems", "logo": "", "url": "", "order": 4}
+  },
+  {
+    "model": "catalog.partner",
+    "pk": 5,
+    "fields": {"name": "Болид", "logo": "", "url": "", "order": 5}
+  },
+  {
+    "model": "catalog.partner",
+    "pk": 6,
+    "fields": {"name": "CAME", "logo": "", "url": "", "order": 6}
+  }
+]

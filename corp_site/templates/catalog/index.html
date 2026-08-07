@@ -8,11 +8,11 @@
         <h1 class="display-4 fw-bold mb-3">Комплексные системы безопасности</h1>
         <p class="lead mb-4">Продажа оборудования, проектирование, монтаж и обслуживание<br>систем безопасности для объектов любой сложности</p>
         <div class="d-flex justify-content-center gap-3 flex-wrap">
-            <a href="{% url 'equipment_list' %}" class="btn btn-primary btn-lg px-4">
-                <i class="bi bi-box-seam me-2"></i>Каталог оборудования
+            <a href="{% url 'calculator' %}" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-calculator me-2"></i>Рассчитать стоимость
             </a>
-            <a href="{% url 'contacts' %}" class="btn btn-outline-light btn-lg px-4">
-                <i class="bi bi-chat-dots me-2"></i>Оставить заявку
+            <a href="{% url 'equipment_list' %}" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-box-seam me-2"></i>Каталог оборудования
             </a>
         </div>
     </div>
@@ -36,6 +36,9 @@
                     <span class="badge bg-primary bg-opacity-10 text-primary mb-2">{{ cat.short_name }}</span>
                     {% endif %}
                     <p class="card-text text-muted small">{{ cat.description }}</p>
+                    {% if cat.price_from %}
+                    <div class="price-from mb-2">Монтаж — от {{ cat.price_from }} ₽</div>
+                    {% endif %}
                     <a href="{% url 'equipment_detail' cat.slug %}" class="btn btn-outline-primary btn-sm">Подробнее</a>
                 </div>
             </div>
@@ -83,6 +86,52 @@
         <a href="{% url 'services' %}" class="btn btn-success">Подробнее об услугах</a>
     </div>
 </section>
+
+{% if projects %}
+<section class="mb-5">
+    <h2 class="text-center fw-bold mb-2">Наши работы</h2>
+    <p class="text-center text-muted mb-4">Реальные объекты, которые мы оснастили системами безопасности</p>
+    <div class="row g-4">
+        {% for project in projects %}
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm card-hover overflow-hidden">
+                {% if project.image %}
+                <img src="{{ project.image.url }}" alt="{{ project.title }}" class="project-img">
+                {% else %}
+                <div class="project-placeholder">
+                    <i class="bi {{ project.category.icon|default:'bi-building' }}"></i>
+                </div>
+                {% endif %}
+                <div class="card-body p-4">
+                    {% if project.object_type %}
+                    <span class="badge bg-primary bg-opacity-10 text-primary mb-2">{{ project.object_type }}</span>
+                    {% endif %}
+                    <h5 class="fw-bold">{{ project.title }}</h5>
+                    <p class="text-muted small mb-0">{{ project.description|truncatechars:120 }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="text-center mt-4">
+        <a href="{% url 'projects' %}" class="btn btn-outline-primary">Все выполненные объекты</a>
+    </div>
+</section>
+{% endif %}
+
+{% if partners %}
+<section class="mb-5">
+    <h2 class="text-center fw-bold mb-2">Работаем с оборудованием</h2>
+    <p class="text-center text-muted mb-4">Сертифицированные бренды с официальной гарантией</p>
+    <div class="partners-strip">
+        {% for partner in partners %}
+        <span class="partner-badge">
+            {% if partner.logo %}<img src="{{ partner.logo.url }}" alt="{{ partner.name }}">{% else %}{{ partner.name }}{% endif %}
+        </span>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <section class="bg-light rounded-4 p-5 text-center">
     <h3 class="fw-bold mb-3">Нужна консультация?</h3>
