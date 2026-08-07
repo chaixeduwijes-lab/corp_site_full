@@ -1,6 +1,8 @@
 from django.contrib import admin
 
-from .models import Category, ContactRequest, Partner, Project
+from .models import (
+    Article, Category, ContactRequest, Partner, Project, Review,
+)
 
 
 @admin.register(Category)
@@ -25,6 +27,24 @@ class ProjectAdmin(admin.ModelAdmin):
 class PartnerAdmin(admin.ModelAdmin):
     list_display = ['name', 'url', 'order']
     list_editable = ['order']
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ['author_name', 'object_name', 'rating', 'is_published',
+                    'order', 'created_at']
+    list_editable = ['is_published', 'order']
+    list_filter = ['is_published', 'rating']
+    search_fields = ['author_name', 'object_name', 'text']
+
+
+@admin.register(Article)
+class ArticleAdmin(admin.ModelAdmin):
+    list_display = ['title', 'published_at', 'is_published']
+    list_editable = ['is_published']
+    list_filter = ['is_published']
+    prepopulated_fields = {'slug': ('title',)}
+    search_fields = ['title', 'excerpt', 'body']
 
 
 @admin.register(ContactRequest)

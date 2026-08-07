@@ -12,3 +12,16 @@
     </a>
 </div>
 {% endblock %}
+
+{% block scripts %}
+{% if YANDEX_METRIKA_ID %}
+<script>
+    // Цель Метрики: разделяем заявки из формы и калькулятора
+    (function () {
+        var from = new URLSearchParams(window.location.search).get('from');
+        var goal = from === 'quiz' ? 'quiz_lead' : 'contact_lead';
+        if (typeof ym === 'function') { ym({{ YANDEX_METRIKA_ID }}, 'reachGoal', goal); }
+    })();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,45 +1,69 @@
-# Corp Site
+# СпецМонтаж — сайт систем безопасности
 
-Учебный проект с системой заявок.
+Корпоративный сайт компании по продаже, проектированию, монтажу и обслуживанию
+систем безопасности: СКУД, видеонаблюдение, охранные системы, оповещение,
+освещение, досмотровое оборудование, электросистемы, ограждения.
 
-## Запуск проекта локально
+**Стек:** Django 5.2 · Bootstrap 5 (self-hosted) · PostgreSQL 16 · Nginx · Docker
 
-1. Создайте и активируйте виртуальное окружение (пример для bash/zsh):
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-2. Установите зависимости из корня репозитория:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Перейдите в директорию проекта `corp_site`:
-   ```bash
-   cd corp_site
-   ```
-4. Примените миграции перед работой и загрузкой фикстур:
-   ```bash
-   python manage.py migrate
-   ```
-5. (Опционально) Загрузите демонстрационные данные, чтобы сразу увидеть заявки и комментарии:
-   ```bash
-   python manage.py loaddata tickets/fixtures/sample.json
-   ```
-6. Запустите dev-сервер и откройте сайт в браузере по адресу http://127.0.0.1:8000/tickets/:
-   ```bash
-   python manage.py runserver
-   ```
+## Возможности
 
-## Полезные команды
+- Каталог из 8 категорий оборудования с ценами «от …»
+- Кейсы «Наши работы» с фото (загрузка через админку)
+- Квиз-калькулятор стоимости — заявки помечаются источником для аналитики
+- Отзывы клиентов и блок брендов-партнёров
+- SEO-блог со статьями
+- Форма обратной связи + email-уведомления менеджеру
+- Плавающие кнопки WhatsApp/Telegram
+- Яндекс.Метрика с целями `contact_lead` / `quiz_lead`
+- SEO: sitemap.xml, robots.txt, Open Graph, gzip
 
-Все команды выполняются из директории `corp_site`:
+Контакты компании, мессенджеры и счётчик Метрики задаются через
+env-переменные — без правки кода (см. `.env.example`).
 
-- Применить миграции перед работой и загрузкой фикстур: `python manage.py migrate`.
-- Импорт демонстрационных данных: `python manage.py loaddata tickets/fixtures/sample.json`.
-- Запуск dev-сервера: `python manage.py runserver`.
-- Запуск тестов: `python manage.py test`.
+## Запуск в Docker (рекомендуется)
 
-## Частые проблемы
+```bash
+cp .env.example .env   # заполните SECRET_KEY, пароли, контакты
+docker compose up -d --build
+```
 
-- Ошибка `ModuleNotFoundError: No module named 'django'` означает, что зависимости не установлены. Проверьте, что из корня репозитория выполнили `pip install -r requirements.txt` и активировали виртуальное окружение.
-- Если команда `python manage.py ...` не находится, убедитесь, что перед запуском перешли в директорию `corp_site` (см. шаг 3 в инструкции выше).
+Сайт: http://localhost • Админка: http://localhost/admin/
+
+Миграции, демо-контент и администратор создаются автоматически при первом
+старте. Продакшен-деплой с HTTPS — в [DEPLOY.md](DEPLOY.md).
+
+## Локальная разработка без Docker
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cd corp_site
+python manage.py migrate
+python manage.py loaddata categories demo_content
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Без переменных PostgreSQL используется SQLite — ничего настраивать не нужно.
+
+## Тесты
+
+```bash
+cd corp_site
+python manage.py test
+```
+
+## Структура
+
+```
+corp_site/
+├── catalog/            # основное приложение: модели, вьюхи, формы, фикстуры
+├── corp_site/          # настройки Django
+├── templates/          # шаблоны (base + catalog/*)
+└── static/             # стили, локальный Bootstrap (static/vendor)
+deploy/                 # nginx-конфиги (HTTP и HTTPS), entrypoint
+docker-compose.yml      # базовый стек: nginx + web + postgres
+docker-compose.https.yml# HTTPS-оверлей с certbot
+DEPLOY.md               # инструкция по продакшен-деплою
+```

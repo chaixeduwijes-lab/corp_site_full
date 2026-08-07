@@ -76,6 +76,53 @@ class Partner(models.Model):
         return self.name
 
 
+class Review(models.Model):
+    author_name = models.CharField('Имя клиента', max_length=150)
+    object_name = models.CharField(
+        'Объект / компания', max_length=200, blank=True,
+        help_text='Например: складской комплекс, ООО «Ромашка»',
+    )
+    text = models.TextField('Текст отзыва')
+    rating = models.PositiveSmallIntegerField(
+        'Оценка', default=5,
+        choices=[(i, str(i)) for i in range(1, 6)],
+    )
+    is_published = models.BooleanField('Опубликован', default=True)
+    order = models.PositiveIntegerField('Порядок отображения', default=0)
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
+        ordering = ['order', '-created_at']
+
+    def __str__(self):
+        return f'{self.author_name} ({self.rating}/5)'
+
+
+class Article(models.Model):
+    title = models.CharField('Заголовок', max_length=255)
+    slug = models.SlugField('URL-идентификатор', unique=True, max_length=120)
+    excerpt = models.TextField(
+        'Анонс', max_length=500,
+        help_text='Короткое описание для списка статей и поисковиков',
+    )
+    body = models.TextField(
+        'Текст статьи',
+        help_text='Абзацы разделяются пустой строкой',
+    )
+    published_at = models.DateField('Дата публикации', null=True, blank=True)
+    is_published = models.BooleanField('Опубликована', default=True)
+
+    class Meta:
+        verbose_name = 'Статья'
+        verbose_name_plural = 'Статьи'
+        ordering = ['-published_at']
+
+    def __str__(self):
+        return self.title
+
+
 class ContactRequest(models.Model):
     class Source(models.TextChoices):
         FORM = 'form', 'Форма обратной связи'

@@ -3,7 +3,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from .forms import ContactForm, QuizForm
-from .models import Category, ContactRequest, Partner, Project
+from .models import (
+    Article, Category, ContactRequest, Partner, Project, Review,
+)
 from .notifications import notify_manager
 
 
@@ -12,6 +14,7 @@ def index(request):
         'categories': Category.objects.all()[:6],
         'partners': Partner.objects.all(),
         'projects': Project.objects.filter(is_published=True)[:3],
+        'reviews': Review.objects.filter(is_published=True)[:3],
     })
 
 
@@ -40,6 +43,21 @@ def projects_list(request):
     })
 
 
+def blog_list(request):
+    return render(request, 'catalog/blog_list.html', {
+        'articles': Article.objects.filter(is_published=True),
+    })
+
+
+def blog_detail(request, slug):
+    article = get_object_or_404(Article, slug=slug, is_published=True)
+    others = Article.objects.filter(is_published=True).exclude(pk=article.pk)[:3]
+    return render(request, 'catalog/blog_detail.html', {
+        'article': article,
+        'other_articles': others,
+    })
+
+
 def calculator(request):
     if request.method == 'POST':
         form = QuizForm(request.POST)
@@ -51,7 +69,7 @@ def calculator(request):
                 source=ContactRequest.Source.QUIZ,
             )
             notify_manager(contact)
-            return redirect('contact_success')
+            return redirect(reverse('contact_success') + '?from=quiz')
     else:
         form = QuizForm()
     return render(request, 'catalog/calculator.html', {'form': form})
@@ -63,7 +81,7 @@ def contacts(request):
         if form.is_valid():
             contact = form.save()
             notify_manager(contact)
-            return redirect('contact_success')
+            return redirect(reverse('contact_success') + '?from=form')
     else:
         form = ContactForm()
     return render(request, 'catalog/contacts.html', {'form': form})
@@ -82,7 +100,7 @@ def robots_txt(request):
 def sitemap_xml(request):
     static_names = [
         'index', 'equipment_list', 'services', 'projects', 'calculator',
-        'contacts',
+        'blog', 'contacts',
     ]
     urls = [request.build_absolute_uri(reverse(name)) for name in static_names]
     urls += [
@@ -90,6 +108,12 @@ def sitemap_xml(request):
             reverse('equipment_detail', args=[cat.slug])
         )
         for cat in Category.objects.all()
+    ]
+    urls += [
+        request.build_absolute_uri(
+            reverse('blog_detail', args=[article.slug])
+        )
+        for article in Article.objects.filter(is_published=True)
     ]
     items = '\n'.join(f'  <url><loc>{u}</loc></url>' for u in urls)
     xml = (

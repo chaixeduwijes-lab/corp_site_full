@@ -14,4 +14,5 @@ def site_contacts(request):
         'SITE_WHATSAPP': os.environ.get('SITE_WHATSAPP', ''),
         'SITE_TELEGRAM': os.environ.get('SITE_TELEGRAM', ''),
         'SITE_WORK_HOURS': os.environ.get('SITE_WORK_HOURS', 'Пн—Пт: 9:00—18:00'),
+        'YANDEX_METRIKA_ID': os.environ.get('YANDEX_METRIKA_ID', ''),
     }

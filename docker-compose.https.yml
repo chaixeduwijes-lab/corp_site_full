@@ -1,0 +1,35 @@
+# Оверлей для HTTPS. Запуск:
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+# Перед первым запуском получите сертификат — см. DEPLOY.md
+
+services:
+  web:
+    environment:
+      ENABLE_HTTPS: "true"
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx-https.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_files:/app/staticfiles:ro
+      - media_files:/app/media:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    # Проверка продления каждые 12 часов
+    entrypoint: >
+      /bin/sh -c 'trap exit TERM;
+      while :; do certbot renew --webroot -w /var/www/certbot --quiet;
+      sleep 12h & wait $${!}; done'
+
+volumes:
+  certbot_certs:
+  certbot_www:

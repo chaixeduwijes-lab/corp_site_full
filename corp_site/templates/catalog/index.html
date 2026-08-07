@@ -119,6 +119,31 @@
 </section>
 {% endif %}
 
+{% if reviews %}
+<section class="mb-5">
+    <h2 class="text-center fw-bold mb-2">Отзывы клиентов</h2>
+    <p class="text-center text-muted mb-4">Что говорят о нашей работе</p>
+    <div class="row g-4">
+        {% for review in reviews %}
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="mb-2 text-warning">
+                        {% for i in "12345" %}{% if forloop.counter <= review.rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}{% endfor %}
+                    </div>
+                    <p class="text-muted small fst-italic">«{{ review.text }}»</p>
+                    <div class="fw-bold small">{{ review.author_name }}</div>
+                    {% if review.object_name %}
+                    <div class="text-muted small">{{ review.object_name }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 {% if partners %}
 <section class="mb-5">
     <h2 class="text-center fw-bold mb-2">Работаем с оборудованием</h2>

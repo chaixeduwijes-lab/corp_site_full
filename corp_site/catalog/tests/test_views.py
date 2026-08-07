@@ -2,7 +2,9 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from catalog.models import Category, ContactRequest, Partner, Project
+from catalog.models import (
+    Article, Category, ContactRequest, Partner, Project, Review,
+)
 
 
 class IndexViewTest(TestCase):
@@ -84,7 +86,9 @@ class ContactsViewTest(TestCase):
             'phone': '+7 999 123 4567',
             'message': 'Нужна консультация по СКУД',
         })
-        self.assertRedirects(response, reverse('contact_success'))
+        self.assertRedirects(
+            response, reverse('contact_success') + '?from=form'
+        )
         self.assertEqual(ContactRequest.objects.count(), 1)
         req = ContactRequest.objects.first()
         self.assertEqual(req.name, 'Иван Иванов')
@@ -146,7 +150,9 @@ class CalculatorViewTest(TestCase):
             'name': 'Пётр',
             'phone': '+7 900 000 00 00',
         })
-        self.assertRedirects(response, reverse('contact_success'))
+        self.assertRedirects(
+            response, reverse('contact_success') + '?from=quiz'
+        )
         req = ContactRequest.objects.get()
         self.assertEqual(req.source, ContactRequest.Source.QUIZ)
         self.assertIn('Видеонаблюдение', req.message)
@@ -209,8 +215,60 @@ class ContactFormValidationTest(TestCase):
             'phone': '+7 900 000 00 00',
             'message': 'Только телефон',
         })
-        self.assertRedirects(response, reverse('contact_success'))
+        self.assertRedirects(
+            response, reverse('contact_success') + '?from=form'
+        )
         self.assertEqual(ContactRequest.objects.count(), 1)
+
+
+class BlogViewsTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.article = Article.objects.create(
+            title='Как выбрать камеры',
+            slug='kak-vybrat-kamery',
+            excerpt='Анонс статьи',
+            body='Первый абзац.\n\nВторой абзац.',
+            published_at='2026-07-15',
+            is_published=True,
+        )
+        Article.objects.create(
+            title='Черновик статьи', slug='draft-article',
+            excerpt='-', body='-', is_published=False,
+        )
+
+    def test_blog_list(self):
+        response = self.client.get(reverse('blog'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Как выбрать камеры')
+        self.assertNotContains(response, 'Черновик статьи')
+
+    def test_blog_detail(self):
+        response = self.client.get(
+            reverse('blog_detail', args=[self.article.slug])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Второй абзац')
+
+    def test_unpublished_detail_404(self):
+        response = self.client.get(
+            reverse('blog_detail', args=['draft-article'])
+        )
+        self.assertEqual(response.status_code, 404)
+
+
+class ReviewsDisplayTest(TestCase):
+    def test_published_reviews_on_index(self):
+        Review.objects.create(
+            author_name='Андрей', object_name='Склад',
+            text='Отличная работа', rating=5, is_published=True,
+        )
+        Review.objects.create(
+            author_name='Скрытый', text='-', is_published=False,
+        )
+        response = self.client.get(reverse('index'))
+        self.assertContains(response, 'Отличная работа')
+        self.assertNotContains(response, 'Скрытый')
 
 
 class SeoViewsTest(TestCase):
@@ -218,6 +276,10 @@ class SeoViewsTest(TestCase):
     def setUpTestData(cls):
         Category.objects.create(
             name='СКУД', slug='skud', description='Описание', order=1,
+        )
+        Article.objects.create(
+            title='Статья', slug='statya', excerpt='-', body='-',
+            is_published=True,
         )
 
     def test_robots_txt(self):
@@ -232,3 +294,4 @@ class SeoViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/xml')
         self.assertContains(response, '/equipment/skud/')
+        self.assertContains(response, '/blog/statya/')
