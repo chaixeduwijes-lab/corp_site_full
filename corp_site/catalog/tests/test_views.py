@@ -103,3 +103,24 @@ class ContactSuccessViewTest(TestCase):
         response = self.client.get(reverse('contact_success'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Заявка успешно отправлена')
+
+
+class SeoViewsTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        Category.objects.create(
+            name='СКУД', slug='skud', description='Описание', order=1,
+        )
+
+    def test_robots_txt(self):
+        response = self.client.get('/robots.txt')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/plain')
+        self.assertContains(response, 'Sitemap:')
+        self.assertContains(response, 'Disallow: /admin/')
+
+    def test_sitemap_xml(self):
+        response = self.client.get('/sitemap.xml')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/xml')
+        self.assertContains(response, '/equipment/skud/')

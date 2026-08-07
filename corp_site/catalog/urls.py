@@ -9,4 +9,6 @@ urlpatterns = [
     path('services/', views.services, name='services'),
     path('contacts/', views.contacts, name='contacts'),
     path('contacts/success/', views.contact_success, name='contact_success'),
+    path('robots.txt', views.robots_txt, name='robots_txt'),
+    path('sitemap.xml', views.sitemap_xml, name='sitemap'),
 ]
