@@ -6,26 +6,61 @@
 
    Использование:
      YC_API_KEY=... YC_FOLDER_ID=... node scripts/update-news.mjs [путь-к-news.json]
+     YC_OAUTH_TOKEN=... YC_FOLDER_ID=... node scripts/update-news.mjs [путь-к-news.json]
 
-   YC_API_KEY   — API-ключ сервисного аккаунта с ролью ai.languageModels.user
-   YC_FOLDER_ID — идентификатор каталога Яндекс Клауда */
+   YC_API_KEY     — API-ключ сервисного аккаунта с ролью ai.languageModels.user
+   YC_OAUTH_TOKEN — либо OAuth-токен Яндекс ID (y0_...); меняется на IAM-токен
+   YC_FOLDER_ID   — идентификатор каталога Яндекс Клауда
+   NEWS_FEEDS     — (необязательно) свои RSS-ленты через запятую */
 
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
-const FEEDS = [
+const DEFAULT_FEEDS = [
   'https://techcrunch.com/category/artificial-intelligence/feed/',
   'https://venturebeat.com/category/ai/feed/',
   'https://www.artificialintelligence-news.com/feed/',
 ]
+const FEEDS = (process.env.NEWS_FEEDS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+FEEDS.length || FEEDS.push(...DEFAULT_FEEDS)
+
 const MAX_ITEMS_PER_FEED = 12
 const TAGS = ['Релизы', 'Рынок', 'Безопасность', 'Регулирование']
 
+// эндпоинты можно переопределить в тестах, чтобы прогнать пайплайн без облака
+const IAM_ENDPOINT = process.env.YC_IAM_ENDPOINT ?? 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
+const LLM_ENDPOINT =
+  process.env.YC_LLM_ENDPOINT ?? 'https://llm.api.cloud.yandex.net/foundationModels/v1/completion'
+
 const apiKey = process.env.YC_API_KEY
+const oauthToken = process.env.YC_OAUTH_TOKEN
 const folderId = process.env.YC_FOLDER_ID
-if (!apiKey || !folderId) {
-  console.error('Нужны переменные окружения YC_API_KEY и YC_FOLDER_ID')
+if ((!apiKey && !oauthToken) || !folderId) {
+  console.error(
+    'Нужны YC_FOLDER_ID и одна из переменных: YC_API_KEY (Api-Key сервисного аккаунта) или YC_OAUTH_TOKEN (OAuth-токен Яндекс ID)',
+  )
   process.exit(1)
+}
+
+/* Api-Key подставляется как есть; OAuth-токен Яндекс ID сначала меняется
+   на короткоживущий IAM-токен (стандартный обмен, живёт до 12 часов). */
+async function getAuthHeader() {
+  if (apiKey) return `Api-Key ${apiKey}`
+  const res = await fetch(IAM_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ yandexPassportOauthToken: oauthToken }),
+    signal: AbortSignal.timeout(30000),
+  })
+  if (!res.ok) {
+    throw new Error(`Обмен OAuth→IAM не удался: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
+  }
+  const { iamToken } = await res.json()
+  if (!iamToken) throw new Error('В ответе IAM нет iamToken')
+  return `Bearer ${iamToken}`
 }
 const outPath = resolve(process.argv[2] ?? 'salon-dashboard/public/data/news.json')
 
@@ -51,11 +86,15 @@ async function fetchFeed(url) {
       const title = block.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1]
       const link = block.match(/<link[^>]*>([\s\S]*?)<\/link>/)?.[1]
       const date = block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/)?.[1]
-      if (title && link) {
+      const url = link ? decodeEntities(link) : ''
+      // только http(s)-ссылки: allowedUrls попадает в клик href на сайте
+      if (title && /^https?:\/\//i.test(url)) {
+        // кривой pubDate не должен ронять всю ленту
+        const parsed = date ? new Date(decodeEntities(date)) : null
         items.push({
           title: decodeEntities(title),
-          link: decodeEntities(link),
-          date: date ? new Date(decodeEntities(date)).toISOString().slice(0, 10) : '',
+          link: url,
+          date: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : '',
         })
       }
       if (items.length >= MAX_ITEMS_PER_FEED) break
@@ -88,10 +127,10 @@ async function askYandexGpt(headlines) {
 Заголовки:
 ${headlines.map((h, i) => `${i + 1}. [${h.date}] ${h.title} — ${h.link}`).join('\n')}`
 
-  const res = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+  const res = await fetch(LLM_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Authorization': `Api-Key ${apiKey}`,
+      'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -116,10 +155,13 @@ function parseNews(text, allowedUrls) {
   const raw = JSON.parse(jsonText.slice(start, end + 1))
   if (!Array.isArray(raw) || raw.length === 0) throw new Error('Пустой дайджест')
 
+  const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '')
   return raw
-    .filter((n) => n && typeof n.id === 'string' && typeof n.title === 'string')
+    .filter((n) => n && typeof n.title === 'string')
     .map((n, i) => ({
-      id: String(n.id || `d${i + 1}`),
+      // id назначаем сами: модель может выдать дубликаты, а id — это ключ
+      // React-списков и часть URL /news/:id
+      id: `d${stamp}-${i + 1}`,
       date: typeof n.date === 'string' ? n.date : new Date().toISOString().slice(0, 10),
       tag: TAGS.includes(n.tag) ? n.tag : 'Рынок',
       title: String(n.title).slice(0, 200),
@@ -149,5 +191,9 @@ if (news.length < 3) {
 }
 
 await mkdir(dirname(outPath), { recursive: true })
-await writeFile(outPath, JSON.stringify(news, null, 2) + '\n')
+// атомарно: nginx отдаёт этот файл прямо из вебрута, упавшая на середине
+// запись не должна оставить пустой/битый файл вместо вчерашнего дайджеста
+const tmpPath = `${outPath}.tmp`
+await writeFile(tmpPath, JSON.stringify(news, null, 2) + '\n')
+await rename(tmpPath, outPath)
 console.error(`✓ Записано ${news.length} новостей в ${outPath}`)

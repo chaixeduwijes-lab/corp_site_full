@@ -9,9 +9,11 @@ jobs:
   update-news:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    # Секреты: YC_API_KEY (API-ключ сервисного аккаунта с ролью
-    # ai.languageModels.user), YC_FOLDER_ID — каталог Яндекс Клауда,
+    # Секреты: YC_FOLDER_ID — каталог Яндекс Клауда — и один из
+    # YC_API_KEY (Api-Key сервисного аккаунта с ролью ai.languageModels.user)
+    # или YC_OAUTH_TOKEN (OAuth-токен Яндекс ID),
     # плюс DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY для выкладки на ВМ.
+    # Альтернатива без GitHub: таймер vest-smr-news прямо на ВМ (deploy/vm-setup.sh).
     steps:
       - uses: actions/checkout@v4
 
@@ -24,11 +26,13 @@ jobs:
         id: secrets
         env:
           YC_API_KEY: ${{ secrets.YC_API_KEY }}
+          YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          if [ -z "$YC_API_KEY" ]; then
+          if [ -z "$YC_FOLDER_ID" ] || { [ -z "$YC_API_KEY" ] && [ -z "$YC_OAUTH_TOKEN" ]; }; then
             echo "yc=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::YC_API_KEY/YC_FOLDER_ID не настроены — генерация дайджеста пропущена."
+            echo "::warning::Нужны YC_FOLDER_ID и один из YC_API_KEY/YC_OAUTH_TOKEN — генерация дайджеста пропущена."
           else
             echo "yc=true" >> "$GITHUB_OUTPUT"
           fi
@@ -42,6 +46,7 @@ jobs:
         if: steps.secrets.outputs.yc == 'true'
         env:
           YC_API_KEY: ${{ secrets.YC_API_KEY }}
+          YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
           YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
         run: node scripts/update-news.mjs news.json
 
@@ -65,7 +70,8 @@ jobs:
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH != '' && secrets.DEPLOY_PATH || '/var/www/vest-smr' }}
         run: |
+          # через sudo: если ВМ настроена deploy/vm-setup.sh, вебрут принадлежит
+          # root, и обычный scp упёрся бы в Permission denied
           ssh -i ~/.ssh/id_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "mkdir -p $DEPLOY_PATH/data"
-          scp -i ~/.ssh/id_deploy news.json \
-            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/data/news.json"
+            "sudo mkdir -p $DEPLOY_PATH/data && sudo tee $DEPLOY_PATH/data/news.json >/dev/null" \
+            < news.json
