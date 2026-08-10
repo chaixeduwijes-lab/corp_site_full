@@ -68,3 +68,32 @@ rsync -az --delete dist/ user@<IP-ВМ>:/var/www/vest-smr/
 Данные зашиты в сборку из `salon-dashboard/src/data/salon.json`.
 Чтобы обновить цифры, замените этот файл новой выгрузкой salonbackup
 и запушьте в `main` — автодеплой пересоберёт и выложит сайт.
+
+## Вариант: контейнером (аналог Cloud Run из инструкции)
+
+В `salon-dashboard/` есть `Dockerfile` (сборка + nginx, порт 8080).
+
+**На ВМ с Docker:**
+
+```bash
+cd salon-dashboard
+docker build -t salon-dashboard .
+docker run -d --restart unless-stopped -p 80:8080 salon-dashboard
+```
+
+**Или Yandex Serverless Containers (без ВМ, аналог Cloud Run):**
+
+```bash
+yc container registry create --name salon
+docker build -t cr.yandex/<registry-id>/salon-dashboard:latest salon-dashboard
+docker push cr.yandex/<registry-id>/salon-dashboard:latest
+yc serverless container create --name salon-dashboard
+yc serverless container revision deploy \
+  --container-name salon-dashboard \
+  --image cr.yandex/<registry-id>/salon-dashboard:latest \
+  --execution-timeout 30s --memory 256MB --cores 1
+yc serverless container allow-unauthenticated-invoke --name salon-dashboard
+```
+
+Домен vest-smr.ru к Serverless Containers подключается через API Gateway
+или остаётся на ВМ с nginx — тогда используйте первый вариант.
