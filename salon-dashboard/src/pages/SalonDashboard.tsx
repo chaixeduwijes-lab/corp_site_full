@@ -1,12 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'wouter'
 import {
   Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
 import { StatCard } from '../components/StatCard'
 import {
   MONTH_SHORT, PAY_LABELS, PROGRAMS, SERIES_COLORS,
@@ -18,7 +15,7 @@ const PERIODS = [
   ...monthsInData.map((m) => ({ key: m, label: monthLabel(m) })),
 ]
 
-export default function Dashboard() {
+export default function SalonDashboard() {
   const [period, setPeriod] = useState('all')
 
   const rows = useMemo(
@@ -62,7 +59,7 @@ export default function Dashboard() {
     <div className="flex flex-col gap-8">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Панель показателей</h1>
+          <h1 className="text-3xl font-bold text-foreground">Салон — панель показателей</h1>
           <p className="mt-1 text-muted-foreground">
             {num(entries.length)} визитов · 1 января — 6 августа 2026
           </p>
@@ -252,30 +249,21 @@ export default function Dashboard() {
       </section>
 
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">Последние новости</h2>
-          <Link href="/news">
-            <Button variant="ghost">
-              Все новости <ArrowRight size={15} />
-            </Button>
-          </Link>
-        </div>
+        <h2 className="mb-4 text-xl font-bold">Новости для салона</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {news.slice(0, 2).map((n) => (
-            <Link key={n.id} href={`/news/${n.id}`}>
-              <Card className="h-full cursor-pointer transition-colors hover:border-secondary">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <Badge variant="secondary">{n.tag}</Badge>
-                    <span className="text-xs text-muted-foreground">{fmtDate(n.date)}</span>
-                  </div>
-                  <CardTitle className="pt-1">{n.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="line-clamp-2 text-sm text-muted-foreground">{n.text}</p>
-                </CardContent>
-              </Card>
-            </Link>
+          {news.map((n) => (
+            <Card key={n.id} className="h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <Badge variant="secondary">{n.tag}</Badge>
+                  <span className="text-xs text-muted-foreground">{fmtDate(n.date)}</span>
+                </div>
+                <CardTitle className="pt-1">{n.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{n.text}</p>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </section>

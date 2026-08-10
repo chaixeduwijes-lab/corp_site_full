@@ -4,9 +4,8 @@ import { Star } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { useFavorites } from '../hooks/useFavorites'
-import { fmtDate, news } from '../lib/data'
-
-const TAGS = ['Все', ...new Set(news.map((n) => n.tag))]
+import { AI_NEWS, AI_TAGS, REPORT } from '../data/report'
+import { fmtDate } from '../lib/data'
 
 export default function News() {
   const [tag, setTag] = useState('Все')
@@ -15,10 +14,9 @@ export default function News() {
 
   const items = useMemo(
     () =>
-      news
-        .filter((n) => tag === 'Все' || n.tag === tag)
-        .filter((n) => !onlyFavorites || isFavorite(n.id))
-        .sort((a, b) => b.date.localeCompare(a.date)),
+      AI_NEWS.filter((n) => tag === 'Все' || n.tag === tag).filter(
+        (n) => !onlyFavorites || isFavorite(n.id),
+      ),
     [tag, onlyFavorites, isFavorite],
   )
 
@@ -27,12 +25,12 @@ export default function News() {
       <div>
         <h1 className="text-3xl font-bold">Новости</h1>
         <p className="mt-1 text-muted-foreground">
-          Налоги, проверки и регуляторика для салона — отдельный новостной раздел
+          Новостной канал мониторинга ИИ · выпуск {fmtDate(REPORT.date)} · {REPORT.author}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Фильтр по тегам">
-        {TAGS.map((t) => (
+        {AI_TAGS.map((t) => (
           <button
             key={t}
             onClick={() => setTag(t)}
@@ -90,7 +88,7 @@ export default function News() {
                 </Link>
               </CardHeader>
               <CardContent className="flex-1">
-                <p className="text-sm text-muted-foreground">{n.text}</p>
+                <p className="text-sm text-muted-foreground">{n.summary}</p>
               </CardContent>
             </Card>
           ))}

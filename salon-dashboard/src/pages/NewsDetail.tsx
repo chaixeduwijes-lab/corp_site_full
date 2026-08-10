@@ -1,15 +1,16 @@
 import { Link, useRoute } from 'wouter'
-import { ArrowLeft, Star } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Star } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { ShareMenu } from '../components/ShareMenu'
 import { useFavorites } from '../hooks/useFavorites'
-import { fmtDate, news } from '../lib/data'
+import { AI_NEWS } from '../data/report'
+import { fmtDate } from '../lib/data'
 
 export default function NewsDetail() {
   const [, params] = useRoute('/news/:id')
-  const item = news.find((n) => n.id === params?.id)
+  const item = AI_NEWS.find((n) => n.id === params?.id)
   const { toggle, isFavorite } = useFavorites()
 
   if (!item) {
@@ -25,7 +26,7 @@ export default function NewsDetail() {
     )
   }
 
-  const related = news.filter((n) => n.tag === item.tag && n.id !== item.id)
+  const related = AI_NEWS.filter((n) => n.tag === item.tag && n.id !== item.id)
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -41,7 +42,13 @@ export default function NewsDetail() {
           <span className="text-sm text-muted-foreground">{fmtDate(item.date)}</span>
         </div>
         <h1 className="mt-3 text-3xl font-bold leading-tight">{item.title}</h1>
-        <p className="mt-5 text-lg leading-relaxed text-foreground/90">{item.text}</p>
+        <div className="mt-5 flex flex-col gap-4">
+          {item.body.map((p, i) => (
+            <p key={i} className="text-lg leading-relaxed text-foreground/90">
+              {p}
+            </p>
+          ))}
+        </div>
       </article>
 
       <div className="flex flex-wrap gap-2">
@@ -51,6 +58,26 @@ export default function NewsDetail() {
           {isFavorite(item.id) ? 'В избранном' : 'В избранное'}
         </Button>
       </div>
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Источники
+        </h2>
+        <ul className="flex flex-col gap-1.5">
+          {item.sources.map((s) => (
+            <li key={s.url}>
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 text-sm text-secondary hover:underline"
+              >
+                <ExternalLink size={13} /> {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {related.length > 0 && (
         <section>

@@ -5,7 +5,7 @@ import {
   EXTRAS_PRICES, PROGRAMS, PROGRAM_PRICES, entries, num, rub, total,
 } from '../lib/data'
 
-export default function Calculator() {
+export default function SalonCalculator() {
   const [program, setProgram] = useState<string>('Классика')
   const [extras, setExtras] = useState<string[]>([])
   const [visits, setVisits] = useState(1)
