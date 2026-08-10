@@ -19,7 +19,9 @@ jobs:
       - name: Install linter
         run: |
           python -m pip install --upgrade pip
-          pip install ruff
+          # Пин версии: ruff 0.16 включил новые правила по умолчанию (RUF012, I001)
+          # и непропиненная установка ломала lint на неизменённом коде.
+          pip install "ruff==0.15.22"
       - name: Run linter
         run: ruff check .
   build:
