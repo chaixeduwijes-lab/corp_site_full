@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button'
 import { ShareMenu } from '../components/ShareMenu'
 import { useFavorites } from '../hooks/useFavorites'
 import { useNews } from '../hooks/useNews'
-import { fmtDate } from '../lib/data'
+import { fmtDate } from '../lib/format'
 
 export default function NewsDetail() {
   const [, params] = useRoute('/news/:id')
