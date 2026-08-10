@@ -1,0 +1,49 @@
+name: Dashboard CI
+
+on:
+  push:
+    paths:
+      - "salon-dashboard/**"
+      - ".github/workflows/dashboard.yml"
+  pull_request:
+    paths:
+      - "salon-dashboard/**"
+      - ".github/workflows/dashboard.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: salon-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: salon-dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      # Стартовый чанк не должен снова вобрать выгрузку салона (388 КБ JSON)
+      # или Recharts — они грузятся только на своих маршрутах, см. README.
+      - name: Check entry chunk size
+        run: |
+          entry=$(node -e "
+            const {readFileSync}=require('fs')
+            const html=readFileSync('dist/index.html','utf8')
+            const m=html.match(/src=\"\/assets\/(index-[^\"]+\.js)\"/)
+            if(!m) throw new Error('entry chunk not found in dist/index.html')
+            process.stdout.write(m[1])
+          ")
+          size=$(stat -c%s "dist/assets/$entry")
+          echo "entry chunk $entry: $size bytes"
+          if [ "$size" -gt 400000 ]; then
+            echo "::error::Стартовый чанк вырос до $size байт (лимит 400000)."
+            echo "Скорее всего модуль, который грузится всегда, начал импортировать"
+            echo "lib/data (тянет salon.json) или Recharts — см. salon-dashboard/README.md."
+            exit 1
+          fi

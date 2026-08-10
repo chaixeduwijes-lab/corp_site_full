@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge'
 import { useFavorites } from '../hooks/useFavorites'
 import { AI_TAGS, REPORT } from '../data/report'
 import { useNews } from '../hooks/useNews'
-import { fmtDate } from '../lib/data'
+import { fmtDate } from '../lib/format'
 
 export default function News() {
   const [tag, setTag] = useState('Все')

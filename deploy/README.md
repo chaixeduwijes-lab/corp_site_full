@@ -3,6 +3,21 @@
 Дашборд — статический сайт (папка `salon-dashboard/dist` после сборки).
 Для его работы на ВМ достаточно nginx.
 
+## Чек-лист: что нужно, чтобы сайт открылся на vest-smr.ru
+
+1. **ВМ**: nginx установлен, конфиг из репозитория подключён, каталог
+   `/var/www/vest-smr` существует и доступен пользователю деплоя — раздел 1 ниже.
+2. **DNS**: A-запись `vest-smr.ru` (и `www`) на публичный статический IP ВМ,
+   в группе безопасности открыты порты 80 и 443.
+3. **Файлы сайта на ВМ** — любым из двух способов:
+   - руками сейчас: `deploy/deploy.sh user@<IP-ВМ>` (раздел 3);
+   - автоматически при пуше в `main`: секреты `DEPLOY_HOST` / `DEPLOY_USER` /
+     `DEPLOY_SSH_KEY` в репозитории (раздел 2). Workflow срабатывает только на
+     `main`, поэтому изменения дашборда должны быть влиты в `main`.
+4. **HTTPS**: `certbot --nginx` после того как DNS начал указывать на ВМ.
+5. **Новости** (необязательно): секреты `YC_API_KEY` / `YC_FOLDER_ID` —
+   последний раздел.
+
 ## 1. Разовая настройка ВМ (выполняется один раз)
 
 Подключитесь к ВМ по SSH и выполните:
@@ -57,11 +72,23 @@ cat deploy_key.pub >> ~/.ssh/authorized_keys
 
 ## 3. Ручной деплой (без GitHub Actions)
 
+Скрипт делает то же, что workflow — собирает и заливает по rsync:
+
+```bash
+deploy/deploy.sh yc-user@<IP-ВМ>              # путь по умолчанию /var/www/vest-smr
+deploy/deploy.sh yc-user@vest-smr.ru /var/www/vest-smr
+```
+
+То же вручную:
+
 ```bash
 cd salon-dashboard
 npm ci && npm run build
-rsync -az --delete dist/ user@<IP-ВМ>:/var/www/vest-smr/
+rsync -az --delete --exclude=/data/ dist/ user@<IP-ВМ>:/var/www/vest-smr/
 ```
+
+`--exclude=/data/` обязателен: в `dist/` нет каталога `data/`, а на ВМ там лежит
+ежедневный `news.json`, и без исключения `--delete` стирал бы его при каждом деплое.
 
 ## Обновление данных
 

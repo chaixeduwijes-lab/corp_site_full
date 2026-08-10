@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { AI_METRICS, AI_TAGS, RECOMMENDATIONS, REPORT } from '../data/report'
 import { useNews } from '../hooks/useNews'
-import { fmtDate } from '../lib/data'
+import { fmtDate } from '../lib/format'
 
 const QUICK_LINKS = [
   { href: '/models', title: 'Сравнение моделей', desc: 'DeepSeek V4 Flash, GPT-5.6, Qwen3.8-Max, Muse Spark, Grok 4.5' },

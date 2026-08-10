@@ -4,7 +4,7 @@ import {
   BarChart3, Calculator, Cpu, LineChart, Newspaper, Scissors, Users,
 } from 'lucide-react'
 import { REPORT } from '../data/report'
-import { fmtDate } from '../lib/data'
+import { fmtDate } from '../lib/format'
 
 const MAIN_NAV = [
   { href: '/', label: 'Дашборд', icon: BarChart3 },
