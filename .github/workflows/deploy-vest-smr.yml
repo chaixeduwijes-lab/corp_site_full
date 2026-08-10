@@ -1,0 +1,62 @@
+name: Deploy dashboard to vest-smr.ru
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "salon-dashboard/**"
+      - ".github/workflows/deploy-vest-smr.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    # Деплой работает только после добавления секретов:
+    # DEPLOY_HOST (IP или домен ВМ), DEPLOY_USER, DEPLOY_SSH_KEY (приватный ключ),
+    # опционально DEPLOY_PATH (по умолчанию /var/www/vest-smr).
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: salon-dashboard/package-lock.json
+
+      - name: Build
+        working-directory: salon-dashboard
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check deploy secrets
+        id: secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Секреты деплоя не настроены (DEPLOY_HOST/DEPLOY_USER/DEPLOY_SSH_KEY) — сборка выполнена, выкладка пропущена."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install SSH key
+        if: steps.secrets.outputs.configured == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync to VM
+        if: steps.secrets.outputs.configured == 'true'
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH != '' && secrets.DEPLOY_PATH || '/var/www/vest-smr' }}
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_deploy" \
+            salon-dashboard/dist/ \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/"
