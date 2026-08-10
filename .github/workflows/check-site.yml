@@ -4,6 +4,13 @@ name: Check vest-smr.ru
 # новостей. Полезно, когда с локальной машины сайт не проверить.
 on:
   workflow_dispatch:
+  # токен интеграции не может дёргать workflow_dispatch — проверка
+  # запускается пушем маркер-файла .check-site (echo N > .check-site)
+  push:
+    branches: ["main"]
+    paths:
+      - ".check-site"
+      - ".github/workflows/check-site.yml"
 
 jobs:
   check:
