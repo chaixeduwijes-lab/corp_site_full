@@ -16,6 +16,8 @@ APP_DIR="/opt/corp_site_full"
 WEB_ROOT="/var/www/vest-smr"
 ENV_FILE="/etc/vest-smr/news.env"
 LOCK_FILE="/run/vest-smr-deploy.lock"
+# каталог Яндекс Клауда владельца — подставляется при интерактивном вводе токена
+YC_FOLDER_DEFAULT="${YC_FOLDER_DEFAULT:-b1gl1jbtedm0f70h0fgb}"
 # на свежей ВМ apt-лок первые минуты держат cloud-init/unattended-upgrades —
 # ждём до 5 минут вместо мгновенного падения
 APT="apt-get -o DPkg::Lock::Timeout=300"
@@ -91,6 +93,20 @@ main() {
   mkdir -p /etc/vest-smr
   touch "$ENV_FILE"
   chmod 600 "$ENV_FILE"
+  # если токена ещё нет — спрашиваем прямо в терминале (через /dev/tty,
+  # потому что stdin занят пайпом curl | bash); Enter — пропустить
+  local token=""
+  if ! grep -qs 'YC_' "$ENV_FILE"; then
+    echo
+    echo "Введите OAuth-токен Яндекса (y0__...) для ежедневных новостей."
+    echo "Просто Enter — пропустить и добавить позже в $ENV_FILE."
+    printf "Токен: "
+    IFS= read -r token < /dev/tty 2>/dev/null || token=""
+    if [ -n "$token" ]; then
+      printf 'YC_OAUTH_TOKEN=%s\nYC_FOLDER_ID=%s\n' "$token" "$YC_FOLDER_DEFAULT" > "$ENV_FILE"
+      echo "Записано в $ENV_FILE (каталог: $YC_FOLDER_DEFAULT)"
+    fi
+  fi
 
   echo "==> Таймеры: автообновление сайта + ежедневные новости"
   systemctl enable --now vest-smr-deploy.timer vest-smr-news.timer
