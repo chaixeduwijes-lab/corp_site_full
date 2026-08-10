@@ -27,9 +27,10 @@ echo "==> Проверка сборки"
 test -f dist/index.html || { echo "dist/index.html не найден" >&2; exit 1; }
 
 echo "==> Выкладка в $TARGET:$DEPLOY_PATH"
-ssh "$TARGET" "mkdir -p '$DEPLOY_PATH/data'"
+ssh "$TARGET" "sudo mkdir -p '$DEPLOY_PATH/data'"
 # --exclude=/data/: дайджест новостей на ВМ обновляется отдельно и не входит
-# в dist/, иначе --delete стирал бы его при каждом деплое
-rsync -az --delete --exclude=/data/ dist/ "$TARGET:$DEPLOY_PATH/"
+# в dist/, иначе --delete стирал бы его при каждом деплое.
+# sudo rsync: на ВМ после vm-setup.sh вебрут принадлежит root
+rsync -az --delete --exclude=/data/ --rsync-path="sudo rsync" dist/ "$TARGET:$DEPLOY_PATH/"
 
 echo "==> Готово. Проверьте: curl -sI http://${TARGET#*@}/ | head -1"

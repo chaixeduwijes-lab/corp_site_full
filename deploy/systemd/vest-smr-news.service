@@ -1,0 +1,13 @@
+[Unit]
+Description=vest-smr.ru: daily AI news digest via YandexGPT
+Wants=network-online.target
+After=network-online.target
+# не запускаемся, пока в /etc/vest-smr/news.env не вписаны токен и каталог
+ConditionFileNotEmpty=/etc/vest-smr/news.env
+
+[Service]
+Type=oneshot
+TimeoutStartSec=15min
+WorkingDirectory=/opt/corp_site_full
+EnvironmentFile=/etc/vest-smr/news.env
+ExecStart=/usr/bin/env node scripts/update-news.mjs /var/www/vest-smr/data/news.json

@@ -57,8 +57,10 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH != '' && secrets.DEPLOY_PATH || '/var/www/vest-smr' }}
         run: |
           # --exclude=/data/: там лежит news.json от update-news.yml, его нет
-          # в dist/, и без исключения --delete стирал бы дайджест при деплое
-          rsync -az --delete --exclude=/data/ \
+          # в dist/, и без исключения --delete стирал бы дайджест при деплое.
+          # --rsync-path="sudo rsync": на ВМ, настроенной vm-setup.sh, вебрут
+          # принадлежит root
+          rsync -az --delete --exclude=/data/ --rsync-path="sudo rsync" \
             -e "ssh -i ~/.ssh/id_deploy" \
             salon-dashboard/dist/ \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:$DEPLOY_PATH/"
