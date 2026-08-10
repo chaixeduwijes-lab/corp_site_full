@@ -1,0 +1,33 @@
+name: Check vest-smr.ru
+
+# Ручная проверка «что видно снаружи»: DNS домена, ответ сайта и дайджест
+# новостей. Полезно, когда с локальной машины сайт не проверить.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: DNS + HTTP + news.json
+        run: |
+          echo "===== DNS ====="
+          getent hosts vest-smr.ru || echo "vest-smr.ru не резолвится"
+          getent hosts www.vest-smr.ru || echo "www.vest-smr.ru не резолвится"
+
+          echo "===== GET / ====="
+          curl -sS -m 20 -D /tmp/hdr -o /tmp/body http://vest-smr.ru/ || echo "запрос не удался"
+          cat /tmp/hdr 2>/dev/null || true
+          echo "--- первые байты ответа ---"
+          head -c 600 /tmp/body 2>/dev/null || true
+          echo
+
+          echo "===== GET /data/news.json ====="
+          curl -sS -m 20 -o /tmp/news -w 'HTTP %{http_code}, %{size_download} bytes\n' \
+            http://vest-smr.ru/data/news.json || echo "запрос не удался"
+          head -c 800 /tmp/news 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS ====="
+          curl -sSI -m 20 https://vest-smr.ru/ 2>&1 | head -8 || true
