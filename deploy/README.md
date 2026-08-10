@@ -97,3 +97,30 @@ yc serverless container allow-unauthenticated-invoke --name salon-dashboard
 
 Домен vest-smr.ru к Serverless Containers подключается через API Gateway
 или остаётся на ВМ с nginx — тогда используйте первый вариант.
+
+## Ежедневные новости через YandexGPT
+
+Workflow `.github/workflows/update-news.yml` каждый день в 06:00 МСК:
+1) забирает свежие заголовки из RSS-лент об ИИ;
+2) просит YandexGPT собрать русскоязычный дайджест (`scripts/update-news.mjs`),
+   ссылки-источники проверяются по реальным лентам — выдуманные отбрасываются;
+3) выкладывает `data/news.json` на ВМ. Сайт подхватывает файл без пересборки
+   (страница «Новости» читает `/data/news.json`, при его отсутствии показывает
+   встроенный выпуск от 8 августа).
+
+Нужные секреты в репозитории:
+
+| Секрет | Как получить |
+|---|---|
+| `YC_FOLDER_ID` | консоль Яндекс Клауда → ваш каталог → ID каталога |
+| `YC_API_KEY` | создать сервисный аккаунт с ролью `ai.languageModels.user`, затем «Создать API-ключ» |
+
+Плюс уже описанные `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY`.
+Запустить вручную: Actions → «Daily news update via YandexGPT» → Run workflow.
+
+Альтернатива без GitHub: тот же скрипт кроном прямо на ВМ:
+
+```cron
+0 6 * * * cd /opt/corp_site_full && YC_API_KEY=... YC_FOLDER_ID=... \
+  node scripts/update-news.mjs /var/www/vest-smr/data/news.json
+```

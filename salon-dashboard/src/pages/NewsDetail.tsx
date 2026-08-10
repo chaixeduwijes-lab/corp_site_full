@@ -5,12 +5,13 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { ShareMenu } from '../components/ShareMenu'
 import { useFavorites } from '../hooks/useFavorites'
-import { AI_NEWS } from '../data/report'
+import { useNews } from '../hooks/useNews'
 import { fmtDate } from '../lib/data'
 
 export default function NewsDetail() {
   const [, params] = useRoute('/news/:id')
-  const item = AI_NEWS.find((n) => n.id === params?.id)
+  const allNews = useNews()
+  const item = allNews.find((n) => n.id === params?.id)
   const { toggle, isFavorite } = useFavorites()
 
   if (!item) {
@@ -26,7 +27,7 @@ export default function NewsDetail() {
     )
   }
 
-  const related = AI_NEWS.filter((n) => n.tag === item.tag && n.id !== item.id)
+  const related = allNews.filter((n) => n.tag === item.tag && n.id !== item.id)
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">

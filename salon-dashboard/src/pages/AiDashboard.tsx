@@ -4,7 +4,8 @@ import { ArrowRight, Quote, TrendingDown, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { AI_METRICS, AI_NEWS, AI_TAGS, RECOMMENDATIONS, REPORT } from '../data/report'
+import { AI_METRICS, AI_TAGS, RECOMMENDATIONS, REPORT } from '../data/report'
+import { useNews } from '../hooks/useNews'
 import { fmtDate } from '../lib/data'
 
 const QUICK_LINKS = [
@@ -15,10 +16,11 @@ const QUICK_LINKS = [
 
 export default function AiDashboard() {
   const [activeCategory, setActiveCategory] = useState('Все')
+  const allNews = useNews()
 
   const items = useMemo(
-    () => AI_NEWS.filter((n) => activeCategory === 'Все' || n.tag === activeCategory),
-    [activeCategory],
+    () => allNews.filter((n) => activeCategory === 'Все' || n.tag === activeCategory),
+    [allNews, activeCategory],
   )
 
   return (

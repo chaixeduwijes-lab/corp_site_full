@@ -4,20 +4,22 @@ import { Star } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { useFavorites } from '../hooks/useFavorites'
-import { AI_NEWS, AI_TAGS, REPORT } from '../data/report'
+import { AI_TAGS, REPORT } from '../data/report'
+import { useNews } from '../hooks/useNews'
 import { fmtDate } from '../lib/data'
 
 export default function News() {
   const [tag, setTag] = useState('Все')
   const [onlyFavorites, setOnlyFavorites] = useState(false)
   const { toggle, isFavorite } = useFavorites()
+  const allNews = useNews()
 
   const items = useMemo(
     () =>
-      AI_NEWS.filter((n) => tag === 'Все' || n.tag === tag).filter(
+      allNews.filter((n) => tag === 'Все' || n.tag === tag).filter(
         (n) => !onlyFavorites || isFavorite(n.id),
       ),
-    [tag, onlyFavorites, isFavorite],
+    [allNews, tag, onlyFavorites, isFavorite],
   )
 
   return (
@@ -30,7 +32,7 @@ export default function News() {
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Фильтр по тегам">
-        {AI_TAGS.map((t) => (
+        {[...new Set([...AI_TAGS, ...allNews.map((n) => n.tag)])].map((t) => (
           <button
             key={t}
             onClick={() => setTag(t)}
