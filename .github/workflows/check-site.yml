@@ -69,11 +69,16 @@ jobs:
             || echo "HTTPS-запрос к www не удался"
 
           echo "===== Итог ====="
-          if grep -q 'Мониторинг ИИ' /tmp/sbody 2>/dev/null; then
-            echo "OK: посетитель по https://vest-smr.ru попадает на новый дашборд"
+          # С 20.08.2026 порт 443 занимает «ВЕСТ Портал» — отдельное
+          # приложение, развёрнутое владельцем на той же ВМ (его код не в
+          # этом репозитории). Это штатное состояние. НЕ запускайте
+          # deploy/fix-https.sh — он отберёт 443 у портала.
+          if grep -qE 'ВЕСТ Портал|Мониторинг ИИ' /tmp/sbody 2>/dev/null; then
+            grep -q 'ВЕСТ Портал' /tmp/sbody 2>/dev/null \
+              && echo "OK: на https://vest-smr.ru отвечает «ВЕСТ Портал» (штатно)" \
+              || echo "OK: на https://vest-smr.ru отвечает дашборд «Мониторинг ИИ»"
           else
-            echo "ПРОБЛЕМА: по HTTPS посетитель так и не попадает на дашборд."
-            echo "На ВМ (браузерная SSH-консоль Яндекс Клауда) выполните одну команду:"
-            echo "  curl -fsSL https://raw.githubusercontent.com/ivchenkoIL/corp_site_full/main/deploy/fix-https.sh | sudo bash"
+            echo "ПРОБЛЕМА: по HTTPS не отвечает ни портал, ни дашборд — сайт, вероятно, лежит."
+            echo "Проверьте на ВМ: systemctl status nginx и journalctl -u nginx -n 50"
             exit 1
           fi
