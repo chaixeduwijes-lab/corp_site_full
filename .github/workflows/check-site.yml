@@ -36,25 +36,43 @@ jobs:
           head -c 800 /tmp/news 2>/dev/null || true
           echo
 
-          echo "===== HTTPS ====="
-          # GET, а не HEAD: старый Django-портал отвечает на HEAD 405-м,
-          # и по заголовкам не видно, какой именно сайт занял порт 443
-          curl -sS -m 20 -D /tmp/shdr -o /tmp/sbody https://vest-smr.ru/ \
-            || echo "HTTPS-запрос не удался"
-          head -1 /tmp/shdr 2>/dev/null || true
-          echo "--- что отвечает на 443 ---"
+          echo "===== HTTPS (с проходом по редиректам) ====="
+          # GET, а не HEAD (старый портал на HEAD отвечал 405-м), и -L:
+          # 20.08 порт 443 отдавал 303 с пустым телом — без следования
+          # за редиректами не видно, куда в итоге попадает посетитель
+          curl -sS -m 25 -L --max-redirs 5 -D /tmp/shdr -o /tmp/sbody \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}, %{size_download} bytes, редиректов: %{num_redirects}\n' \
+            https://vest-smr.ru/ || echo "HTTPS-запрос не удался"
+          echo "--- заголовки всех хопов (статус/location/server) ---"
+          grep -iE '^(HTTP/|location:|server:)' /tmp/shdr 2>/dev/null || true
+          echo "--- финальная страница ---"
           grep -io '<title>[^<]*' /tmp/sbody 2>/dev/null || head -c 300 /tmp/sbody 2>/dev/null || true
           echo
 
+          echo "===== HTTPS /data/news.json ====="
+          curl -sS -m 25 -L --max-redirs 5 -o /tmp/snews \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}, %{size_download} bytes\n' \
+            https://vest-smr.ru/data/news.json || echo "запрос не удался"
+          head -c 200 /tmp/snews 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS /tickets/ (маркер старого портала) ====="
+          curl -sS -m 25 -L --max-redirs 5 -o /tmp/stickets \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}\n' \
+            https://vest-smr.ru/tickets/ || echo "запрос не удался"
+          grep -io '<title>[^<]*' /tmp/stickets 2>/dev/null || true
+          echo
+
           echo "===== HTTPS www ====="
-          curl -sS -m 20 -o /dev/null -w 'HTTP %{http_code}\n' https://www.vest-smr.ru/ \
+          curl -sS -m 25 -L --max-redirs 5 -o /dev/null \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}\n' https://www.vest-smr.ru/ \
             || echo "HTTPS-запрос к www не удался"
 
           echo "===== Итог ====="
           if grep -q 'Мониторинг ИИ' /tmp/sbody 2>/dev/null; then
-            echo "OK: на https://vest-smr.ru отвечает новый дашборд"
+            echo "OK: посетитель по https://vest-smr.ru попадает на новый дашборд"
           else
-            echo "ПРОБЛЕМА: порт 443 всё ещё не у дашборда."
+            echo "ПРОБЛЕМА: по HTTPS посетитель так и не попадает на дашборд."
             echo "На ВМ (браузерная SSH-консоль Яндекс Клауда) выполните одну команду:"
             echo "  curl -fsSL https://raw.githubusercontent.com/ivchenkoIL/corp_site_full/main/deploy/fix-https.sh | sudo bash"
             exit 1
