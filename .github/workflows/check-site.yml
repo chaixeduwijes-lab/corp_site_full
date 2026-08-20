@@ -37,4 +37,25 @@ jobs:
           echo
 
           echo "===== HTTPS ====="
-          curl -sSI -m 20 https://vest-smr.ru/ 2>&1 | head -8 || true
+          # GET, а не HEAD: старый Django-портал отвечает на HEAD 405-м,
+          # и по заголовкам не видно, какой именно сайт занял порт 443
+          curl -sS -m 20 -D /tmp/shdr -o /tmp/sbody https://vest-smr.ru/ \
+            || echo "HTTPS-запрос не удался"
+          head -1 /tmp/shdr 2>/dev/null || true
+          echo "--- что отвечает на 443 ---"
+          grep -io '<title>[^<]*' /tmp/sbody 2>/dev/null || head -c 300 /tmp/sbody 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS www ====="
+          curl -sS -m 20 -o /dev/null -w 'HTTP %{http_code}\n' https://www.vest-smr.ru/ \
+            || echo "HTTPS-запрос к www не удался"
+
+          echo "===== Итог ====="
+          if grep -q 'Мониторинг ИИ' /tmp/sbody 2>/dev/null; then
+            echo "OK: на https://vest-smr.ru отвечает новый дашборд"
+          else
+            echo "ПРОБЛЕМА: порт 443 всё ещё не у дашборда."
+            echo "На ВМ (браузерная SSH-консоль Яндекс Клауда) выполните одну команду:"
+            echo "  curl -fsSL https://raw.githubusercontent.com/ivchenkoIL/corp_site_full/main/deploy/fix-https.sh | sudo bash"
+            exit 1
+          fi
