@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::auth::{self, AuthError};
+use crate::queue::EnqueueError;
 use crate::registry::RegisterError;
 use crate::state::{unix_now, SharedState};
 
@@ -88,7 +89,9 @@ pub async fn register(
             RegisterError::LimitReached => ApiError(StatusCode::CONFLICT, "device_limit_reached"),
         })?;
 
-    tracing::info!(device_id = %device.device_id, "device registered");
+    // No device id in the log line: the join event keyed by identity is
+    // membership metadata that would otherwise persist to disk (audit F4).
+    tracing::info!("device registered");
     Ok((
         StatusCode::CREATED,
         Json(RegisterResponse {
@@ -158,10 +161,17 @@ pub async fn send_message(
     let (id, expires_at) = state
         .queue
         .enqueue(&req.to, ciphertext, unix_now())
-        .map_err(|_| ApiError(StatusCode::TOO_MANY_REQUESTS, "queue_full"))?;
+        .map_err(|e| match e {
+            EnqueueError::QueueFull => ApiError(StatusCode::TOO_MANY_REQUESTS, "queue_full"),
+            EnqueueError::BudgetExceeded => {
+                ApiError(StatusCode::SERVICE_UNAVAILABLE, "server_busy")
+            }
+        })?;
 
     state.online.notify(&req.to);
-    tracing::debug!(message_id = %id, "ciphertext queued");
+    // No message id or recipient in the log: keep steady-state logs free of
+    // per-message routing metadata (audit F4).
+    tracing::trace!("ciphertext queued");
 
     Ok((
         StatusCode::ACCEPTED,

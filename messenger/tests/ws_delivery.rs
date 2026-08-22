@@ -25,6 +25,8 @@ async fn spawn_server() -> (SharedState, String) {
         max_queue_per_device: 16,
         max_devices: 8,
         max_body_bytes: 65536,
+        max_total_queue_bytes: 1 << 20,
+        memory_hardening: false,
         tls: None,
     };
     let registry = DeviceRegistry::open(Path::new(":memory:")).unwrap();

@@ -21,7 +21,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: Config, registry: DeviceRegistry) -> SharedState {
-        let queue = MessageQueue::new(config.message_ttl, config.max_queue_per_device);
+        let queue = MessageQueue::new(
+            config.message_ttl,
+            config.max_queue_per_device,
+            config.max_total_queue_bytes,
+        );
         Arc::new(Self {
             config,
             registry,

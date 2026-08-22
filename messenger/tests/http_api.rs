@@ -27,6 +27,8 @@ fn test_state() -> SharedState {
         max_queue_per_device: 4,
         max_devices: 3,
         max_body_bytes: 65536,
+        max_total_queue_bytes: 1 << 20,
+        memory_hardening: false,
         tls: None,
     };
     let registry = DeviceRegistry::open(Path::new(":memory:")).unwrap();
@@ -127,7 +129,7 @@ async fn register_send_and_queue_lifecycle() {
     // Delivered ciphertext round-trips byte-for-byte, then ACK deletes it.
     let delivered = state.queue.take_undelivered(&bob_id);
     assert_eq!(delivered.len(), 1);
-    assert_eq!(delivered[0].ciphertext, b"opaque-envelope");
+    assert_eq!(&delivered[0].ciphertext[..], b"opaque-envelope");
     assert!(state.queue.ack(&bob_id, &message_id));
     assert_eq!(state.queue.pending_count(&bob_id), 0);
 }

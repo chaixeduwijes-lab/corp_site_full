@@ -6,6 +6,7 @@ use tracing_subscriber::EnvFilter;
 
 use messenger_relay::build_router;
 use messenger_relay::config::Config;
+use messenger_relay::harden;
 use messenger_relay::registry::DeviceRegistry;
 use messenger_relay::state::{unix_now, AppState, SharedState};
 
@@ -20,6 +21,26 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let config = Config::from_env()?;
+
+    // Lock memory and disable core dumps before allocating queues, so queued
+    // ciphertext can never reach swap or a core file (audit F1).
+    if config.memory_hardening {
+        let report = harden::apply();
+        if report.fully_hardened() {
+            tracing::info!("memory hardening applied: pages locked, core dumps disabled");
+        } else {
+            tracing::warn!(
+                memory_locked = report.memory_locked,
+                core_dumps_disabled = report.core_dumps_disabled,
+                non_dumpable = report.non_dumpable,
+                "memory hardening incomplete — queued ciphertext may reach swap or a core \
+                 dump; grant CAP_IPC_LOCK / raise LimitMEMLOCK and disable or encrypt swap"
+            );
+        }
+    } else {
+        tracing::warn!("memory hardening disabled via MSGR_MEMORY_HARDENING; disk-exposure guarantees do not hold");
+    }
+
     let registry = DeviceRegistry::open(&config.db_path)?;
     tracing::info!(
         devices = registry.count(),

@@ -121,7 +121,9 @@ async fn handle_socket(state: SharedState, socket: WebSocket) {
     let conn_id = uuid::Uuid::new_v4().to_string();
     let (wake_tx, mut wake_rx) = mpsc::unbounded_channel::<WakeEvent>();
     state.online.connect(&device_id, &conn_id, wake_tx);
-    tracing::info!(device_id = %device_id, "websocket connected");
+    // Do not log the device id: connect/disconnect timing keyed by identity is
+    // presence metadata that would persist to disk via journald (audit F4).
+    tracing::debug!("websocket connected");
 
     let pending = state.queue.pending_count(&device_id);
     let mut open = send_frame(&mut tx, &ServerFrame::Ready { pending })
@@ -159,7 +161,7 @@ async fn handle_socket(state: SharedState, socket: WebSocket) {
 
     state.online.disconnect(&device_id, &conn_id);
     state.queue.reset_delivered(&device_id);
-    tracing::info!(device_id = %device_id, "websocket disconnected");
+    tracing::debug!("websocket disconnected");
 }
 
 /// Push every not-yet-pushed queued message. Returns false once the socket

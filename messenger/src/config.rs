@@ -29,6 +29,10 @@ pub struct Config {
     pub max_queue_per_device: usize,
     pub max_devices: usize,
     pub max_body_bytes: usize,
+    /// Relay-wide ceiling on the total bytes of queued ciphertext held in RAM.
+    pub max_total_queue_bytes: usize,
+    /// Lock memory and disable core dumps at startup (F1). Default on (unix).
+    pub memory_hardening: bool,
     pub tls: Option<TlsConfig>,
 }
 
@@ -62,15 +66,24 @@ impl Config {
                 .ok()
                 .filter(|t| !t.is_empty()),
             message_ttl,
-            max_queue_per_device: env_or("MSGR_MAX_QUEUE_PER_DEVICE", "512")
+            // Defaults sized for a ~1.5 GB privacy VPS (Njalla/FlokiNET, see
+            // docs). Worst case per-device queue: 16 KiB * 64 = 1 MiB; the
+            // global budget below caps the whole relay well under host RAM.
+            max_queue_per_device: env_or("MSGR_MAX_QUEUE_PER_DEVICE", "64")
                 .parse()
                 .context("MSGR_MAX_QUEUE_PER_DEVICE must be an integer")?,
-            max_devices: env_or("MSGR_MAX_DEVICES", "32")
+            max_devices: env_or("MSGR_MAX_DEVICES", "16")
                 .parse()
                 .context("MSGR_MAX_DEVICES must be an integer")?,
-            max_body_bytes: env_or("MSGR_MAX_BODY_BYTES", "65536")
+            max_body_bytes: env_or("MSGR_MAX_BODY_BYTES", "16384")
                 .parse()
                 .context("MSGR_MAX_BODY_BYTES must be an integer")?,
+            // 64 MiB default: comfortably below the RAM of the smallest
+            // recommended VPS even with the OS and process overhead.
+            max_total_queue_bytes: env_or("MSGR_MAX_TOTAL_QUEUE_BYTES", "67108864")
+                .parse()
+                .context("MSGR_MAX_TOTAL_QUEUE_BYTES must be an integer")?,
+            memory_hardening: env_bool("MSGR_MEMORY_HARDENING", true)?,
             tls,
         })
     }
@@ -78,4 +91,15 @@ impl Config {
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key).unwrap_or_else(|_| default.to_string())
+}
+
+fn env_bool(key: &str, default: bool) -> anyhow::Result<bool> {
+    match std::env::var(key) {
+        Err(_) => Ok(default),
+        Ok(v) => match v.to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Ok(true),
+            "0" | "false" | "no" | "off" => Ok(false),
+            _ => anyhow::bail!("{key} must be a boolean (true/false)"),
+        },
+    }
 }
