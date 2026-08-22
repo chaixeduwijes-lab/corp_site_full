@@ -6,6 +6,10 @@ Ciphertext-only релей для закрытого E2EE-мессенджера
 (§7, §19). Разбор слабых мест и границ гарантий —
 [`../docs/security-audit-messenger-relay.md`](../docs/security-audit-messenger-relay.md).
 
+Референсный E2EE-клиент, который реально шифрует поверх этого реле
+(vodozemac: X3DH + Double Ratchet), — в [`client/`](client/README.md). Это
+Cargo workspace: `cargo test` собирает и реле, и клиент.
+
 ## Модель безопасности
 
 Сервер спроектирован как **потенциально скомпрометированный с первого дня**
@@ -141,7 +145,30 @@ device_limit_reached`.
 
 → `202 {"id": "...", "expires_at": …}`. Сообщение попадает в RAM-очередь
 получателя и живёт до ACK или TTL. Ошибки: `404 unknown_recipient`,
-`429 queue_full`.
+`429 queue_full`, `503 server_busy` (глобальный бюджет RAM исчерпан).
+
+### `POST /v1/prekeys` (подписанный)
+
+Публикация prekey-бандла устройства для асинхронного X3DH-first-contact.
+Только **публичные** ключи; директорий живёт в RAM (см. `prekeys.rs`).
+
+```json
+{
+  "identity_key": "<base64 Curve25519 identity>",
+  "one_time_keys": [{"id": "...", "key": "<base64 Curve25519>"}],
+  "fallback_key": "<base64 Curve25519 | null>"
+}
+```
+
+→ `204`. Identity/fallback заменяются, one-time keys дописываются (dedup по id).
+
+### `GET /v1/prekeys/{device_id}` (подписанный)
+
+Claim бандла получателя, **потребляя один** one-time key (path включает
+device_id и входит в подпись):
+`{"identity_key", "one_time_key": {...}|null, "fallback_key": ...|null}`.
+При исчерпании one-time keys возвращается переиспользуемый fallback. Ошибка:
+`404 no_prekeys`.
 
 ### `GET /v1/ws` (WebSocket)
 

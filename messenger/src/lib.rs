@@ -20,6 +20,7 @@ pub mod api;
 pub mod auth;
 pub mod config;
 pub mod harden;
+pub mod prekeys;
 pub mod queue;
 pub mod registry;
 pub mod state;
@@ -38,6 +39,8 @@ pub fn build_router(state: SharedState) -> Router {
         .route(api::REGISTER_PATH, post(api::register))
         .route(api::DEVICES_PATH, get(api::list_devices))
         .route(api::MESSAGES_PATH, post(api::send_message))
+        .route(api::PREKEYS_PATH, post(api::publish_prekeys))
+        .route("/v1/prekeys/{device_id}", get(api::claim_prekeys))
         .route("/v1/ws", get(ws::ws_handler))
         .layer(DefaultBodyLimit::max(max_body))
         .with_state(state)

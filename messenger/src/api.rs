@@ -1,5 +1,5 @@
 use axum::body::Bytes;
-use axum::extract::State;
+use axum::extract::{OriginalUri, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::auth::{self, AuthError};
+use crate::prekeys::OneTimeKey;
 use crate::queue::EnqueueError;
 use crate::registry::RegisterError;
 use crate::state::{unix_now, SharedState};
@@ -16,6 +17,7 @@ use crate::state::{unix_now, SharedState};
 pub const REGISTER_PATH: &str = "/v1/register";
 pub const DEVICES_PATH: &str = "/v1/devices";
 pub const MESSAGES_PATH: &str = "/v1/messages";
+pub const PREKEYS_PATH: &str = "/v1/prekeys";
 
 /// API error: a status code and a stable machine-readable reason. Reasons are
 /// deliberately terse — the server explains nothing it doesn't have to.
@@ -177,4 +179,58 @@ pub async fn send_message(
         StatusCode::ACCEPTED,
         Json(json!({ "id": id, "expires_at": expires_at })),
     ))
+}
+
+#[derive(Deserialize)]
+struct PublishPrekeysRequest {
+    /// Base64 Curve25519 identity key of the E2EE account (not the relay
+    /// transport key — the relay treats it as opaque public material).
+    identity_key: String,
+    #[serde(default)]
+    one_time_keys: Vec<OneTimeKey>,
+    #[serde(default)]
+    fallback_key: Option<String>,
+}
+
+/// Publish (or top up) the authenticated device's prekey bundle so peers can
+/// start E2EE sessions asynchronously. Public keys only — see `prekeys.rs`.
+pub async fn publish_prekeys(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, ApiError> {
+    let device = auth::verify_request(&state, &headers, "POST", PREKEYS_PATH, &body, unix_now())?;
+
+    let req: PublishPrekeysRequest = serde_json::from_slice(&body)
+        .map_err(|_| ApiError(StatusCode::BAD_REQUEST, "invalid_json"))?;
+    if req.identity_key.is_empty() {
+        return Err(ApiError(StatusCode::BAD_REQUEST, "invalid_identity_key"));
+    }
+
+    state.prekeys.publish(
+        &device.device_id,
+        req.identity_key,
+        req.fallback_key,
+        req.one_time_keys,
+    );
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Claim a peer's prekey bundle, consuming one of their one-time keys. The
+/// signed path includes the target device id, so the request signature covers
+/// exactly which bundle is being claimed.
+pub async fn claim_prekeys(
+    State(state): State<SharedState>,
+    Path(target): Path<String>,
+    OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, ApiError> {
+    auth::verify_request(&state, &headers, "GET", uri.path(), &body, unix_now())?;
+
+    let claimed = state
+        .prekeys
+        .claim(&target)
+        .ok_or(ApiError(StatusCode::NOT_FOUND, "no_prekeys"))?;
+    Ok(Json(claimed))
 }

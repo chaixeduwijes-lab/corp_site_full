@@ -6,6 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::auth::ReplayCache;
 use crate::config::Config;
+use crate::prekeys::PrekeyStore;
 use crate::queue::MessageQueue;
 use crate::registry::DeviceRegistry;
 
@@ -15,6 +16,7 @@ pub struct AppState {
     pub config: Config,
     pub registry: DeviceRegistry,
     pub queue: MessageQueue,
+    pub prekeys: PrekeyStore,
     pub online: Online,
     pub replay: ReplayCache,
 }
@@ -30,6 +32,7 @@ impl AppState {
             config,
             registry,
             queue,
+            prekeys: PrekeyStore::new(),
             online: Online::default(),
             replay: ReplayCache::default(),
         })

@@ -185,6 +185,19 @@ impl MessageQueue {
     pub fn total_bytes(&self) -> usize {
         self.inner.lock().unwrap().total_bytes
     }
+
+    /// Read-only snapshot of the ciphertexts queued for a device, without
+    /// marking them delivered. Intended for metrics and tests that assert the
+    /// relay only ever holds opaque bytes.
+    pub fn peek(&self, device: &str) -> Vec<Vec<u8>> {
+        self.inner
+            .lock()
+            .unwrap()
+            .queues
+            .get(device)
+            .map(|q| q.iter().map(|m| m.ciphertext.to_vec()).collect())
+            .unwrap_or_default()
+    }
 }
 
 #[cfg(test)]
