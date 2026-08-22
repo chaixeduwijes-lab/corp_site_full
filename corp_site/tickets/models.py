@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 
 
 class Ticket(models.Model):
@@ -36,6 +37,25 @@ class Ticket(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def get_absolute_url(self):
+        return reverse('ticket_detail', kwargs={'pk': self.pk})
+
+    @property
+    def status_badge_class(self) -> str:
+        return {
+            self.Status.NEW: 'bg-primary',
+            self.Status.IN_PROGRESS: 'bg-warning text-dark',
+            self.Status.DONE: 'bg-success',
+        }.get(self.status, 'bg-secondary')
+
+    @property
+    def priority_badge_class(self) -> str:
+        return {
+            self.Priority.HIGH: 'bg-danger',
+            self.Priority.MEDIUM: 'bg-warning text-dark',
+            self.Priority.LOW: 'bg-secondary',
+        }.get(self.priority, 'bg-secondary')
 
 
 class Comment(models.Model):

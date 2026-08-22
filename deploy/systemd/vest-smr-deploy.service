@@ -1,0 +1,11 @@
+[Unit]
+Description=vest-smr.ru: rebuild and deploy dashboard from GitHub
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# у oneshot по умолчанию нет таймаута — зависший git/npm навсегда
+# блокировал бы все будущие деплои
+TimeoutStartSec=30min
+ExecStart=/usr/local/bin/vest-smr-deploy

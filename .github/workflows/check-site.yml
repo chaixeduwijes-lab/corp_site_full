@@ -1,0 +1,84 @@
+name: Check vest-smr.ru
+
+# Ручная проверка «что видно снаружи»: DNS домена, ответ сайта и дайджест
+# новостей. Полезно, когда с локальной машины сайт не проверить.
+on:
+  workflow_dispatch:
+  # токен интеграции не может дёргать workflow_dispatch — проверка
+  # запускается пушем маркер-файла .check-site (echo N > .check-site)
+  push:
+    branches: ["main"]
+    paths:
+      - ".check-site"
+      - ".github/workflows/check-site.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: DNS + HTTP + news.json
+        run: |
+          echo "===== DNS ====="
+          getent hosts vest-smr.ru || echo "vest-smr.ru не резолвится"
+          getent hosts www.vest-smr.ru || echo "www.vest-smr.ru не резолвится"
+
+          echo "===== GET / ====="
+          curl -sS -m 20 -D /tmp/hdr -o /tmp/body http://vest-smr.ru/ || echo "запрос не удался"
+          cat /tmp/hdr 2>/dev/null || true
+          echo "--- первые байты ответа ---"
+          head -c 600 /tmp/body 2>/dev/null || true
+          echo
+
+          echo "===== GET /data/news.json ====="
+          curl -sS -m 20 -o /tmp/news -w 'HTTP %{http_code}, %{size_download} bytes\n' \
+            http://vest-smr.ru/data/news.json || echo "запрос не удался"
+          head -c 800 /tmp/news 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS (с проходом по редиректам) ====="
+          # GET, а не HEAD (старый портал на HEAD отвечал 405-м), и -L:
+          # 20.08 порт 443 отдавал 303 с пустым телом — без следования
+          # за редиректами не видно, куда в итоге попадает посетитель
+          curl -sS -m 25 -L --max-redirs 5 -D /tmp/shdr -o /tmp/sbody \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}, %{size_download} bytes, редиректов: %{num_redirects}\n' \
+            https://vest-smr.ru/ || echo "HTTPS-запрос не удался"
+          echo "--- заголовки всех хопов (статус/location/server) ---"
+          grep -iE '^(HTTP/|location:|server:)' /tmp/shdr 2>/dev/null || true
+          echo "--- финальная страница ---"
+          grep -io '<title>[^<]*' /tmp/sbody 2>/dev/null || head -c 300 /tmp/sbody 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS /data/news.json ====="
+          curl -sS -m 25 -L --max-redirs 5 -o /tmp/snews \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}, %{size_download} bytes\n' \
+            https://vest-smr.ru/data/news.json || echo "запрос не удался"
+          head -c 200 /tmp/snews 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS /tickets/ (маркер старого портала) ====="
+          curl -sS -m 25 -L --max-redirs 5 -o /tmp/stickets \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}\n' \
+            https://vest-smr.ru/tickets/ || echo "запрос не удался"
+          grep -io '<title>[^<]*' /tmp/stickets 2>/dev/null || true
+          echo
+
+          echo "===== HTTPS www ====="
+          curl -sS -m 25 -L --max-redirs 5 -o /dev/null \
+            -w 'финал: %{url_effective} -> HTTP %{http_code}\n' https://www.vest-smr.ru/ \
+            || echo "HTTPS-запрос к www не удался"
+
+          echo "===== Итог ====="
+          # С 20.08.2026 порт 443 занимает «ВЕСТ Портал» — отдельное
+          # приложение, развёрнутое владельцем на той же ВМ (его код не в
+          # этом репозитории). Это штатное состояние. НЕ запускайте
+          # deploy/fix-https.sh — он отберёт 443 у портала.
+          if grep -qE 'ВЕСТ Портал|Мониторинг ИИ' /tmp/sbody 2>/dev/null; then
+            grep -q 'ВЕСТ Портал' /tmp/sbody 2>/dev/null \
+              && echo "OK: на https://vest-smr.ru отвечает «ВЕСТ Портал» (штатно)" \
+              || echo "OK: на https://vest-smr.ru отвечает дашборд «Мониторинг ИИ»"
+          else
+            echo "ПРОБЛЕМА: по HTTPS не отвечает ни портал, ни дашборд — сайт, вероятно, лежит."
+            echo "Проверьте на ВМ: systemctl status nginx и journalctl -u nginx -n 50"
+            exit 1
+          fi

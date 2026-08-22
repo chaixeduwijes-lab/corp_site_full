@@ -1,0 +1,77 @@
+name: Daily news update via YandexGPT
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 06:00 МСК ежедневно
+  workflow_dispatch:
+
+jobs:
+  update-news:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    # Секреты: YC_FOLDER_ID — каталог Яндекс Клауда — и один из
+    # YC_API_KEY (Api-Key сервисного аккаунта с ролью ai.languageModels.user)
+    # или YC_OAUTH_TOKEN (OAuth-токен Яндекс ID),
+    # плюс DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY для выкладки на ВМ.
+    # Альтернатива без GitHub: таймер vest-smr-news прямо на ВМ (deploy/vm-setup.sh).
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check secrets
+        id: secrets
+        env:
+          YC_API_KEY: ${{ secrets.YC_API_KEY }}
+          YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$YC_FOLDER_ID" ] || { [ -z "$YC_API_KEY" ] && [ -z "$YC_OAUTH_TOKEN" ]; }; then
+            echo "yc=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Нужны YC_FOLDER_ID и один из YC_API_KEY/YC_OAUTH_TOKEN — генерация дайджеста пропущена."
+          else
+            echo "yc=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate digest with YandexGPT
+        if: steps.secrets.outputs.yc == 'true'
+        env:
+          YC_API_KEY: ${{ secrets.YC_API_KEY }}
+          YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+        run: node scripts/update-news.mjs news.json
+
+      - name: Upload digest artifact
+        if: steps.secrets.outputs.yc == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-json
+          path: news.json
+
+      - name: Install SSH key
+        if: steps.secrets.outputs.yc == 'true' && steps.secrets.outputs.deploy == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Publish to VM
+        if: steps.secrets.outputs.yc == 'true' && steps.secrets.outputs.deploy == 'true'
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH != '' && secrets.DEPLOY_PATH || '/var/www/vest-smr' }}
+        run: |
+          # через sudo: если ВМ настроена deploy/vm-setup.sh, вебрут принадлежит
+          # root, и обычный scp упёрся бы в Permission denied
+          ssh -i ~/.ssh/id_deploy "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "sudo mkdir -p $DEPLOY_PATH/data && sudo tee $DEPLOY_PATH/data/news.json >/dev/null" \
+            < news.json
