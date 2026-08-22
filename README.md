@@ -2,6 +2,10 @@
 
 Учебный проект с системой заявок.
 
+Отдельный подпроект: [`messenger/`](messenger/) — zero-knowledge релей для
+закрытого E2EE-мессенджера (Rust). Исследование и спецификация:
+[`docs/anonymous-vps-e2ee-messenger.md`](docs/anonymous-vps-e2ee-messenger.md).
+
 ## Запуск проекта локально
 
 1. Создайте и активируйте виртуальное окружение (пример для bash/zsh):
