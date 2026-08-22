@@ -21,3 +21,7 @@ staticfiles/
 # salon-dashboard build
 salon-dashboard/dist/
 salon-dashboard/node_modules/
+
+# Rust (messenger relay)
+messenger/target/
+devices.db

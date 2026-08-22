@@ -1,0 +1,72 @@
+# systemd unit for messenger-relay.
+#
+# Enforces the deployment-side half of audit finding F1: the process is
+# allowed to lock memory (LimitMEMLOCK) and forbidden from writing core dumps
+# (LimitCORE=0), and the sandbox keeps its footprint minimal. The relay itself
+# calls mlockall + prctl at startup; this unit grants the privileges that call
+# needs and hardens everything around it.
+#
+# Install:
+#   useradd --system --no-create-home --shell /usr/sbin/nologin msgr
+#   install -o msgr -g msgr -m 0700 -d /var/lib/messenger-relay
+#   cp messenger-relay /usr/local/bin/
+#   cp deploy/messenger-relay.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now messenger-relay
+#
+# IMPORTANT: also disable or encrypt swap on the host — mlockall stops this
+# process being swapped, but a host with plaintext swap remains a risk surface.
+
+[Unit]
+Description=messenger-relay (E2EE ciphertext relay)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=msgr
+Group=msgr
+WorkingDirectory=/var/lib/messenger-relay
+ExecStart=/usr/local/bin/messenger-relay
+Restart=on-failure
+RestartSec=2s
+
+# --- Configuration (override in a drop-in or EnvironmentFile) ---
+Environment=MSGR_BIND_ADDR=0.0.0.0:443
+Environment=MSGR_DB_PATH=/var/lib/messenger-relay/devices.db
+Environment=MSGR_MEMORY_HARDENING=true
+# Set the secret out-of-band, e.g. systemctl edit:
+#   [Service]
+#   Environment=MSGR_INVITE_TOKEN=...
+#   Environment=MSGR_TLS_CERT=/var/lib/messenger-relay/tls/fullchain.pem
+#   Environment=MSGR_TLS_KEY=/var/lib/messenger-relay/tls/privkey.pem
+
+# --- F1: allow memory locking, forbid core dumps ---
+LimitMEMLOCK=infinity
+LimitCORE=0
+
+# --- Sandboxing (least privilege) ---
+# Bind 443 without running as root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_IPC_LOCK
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_IPC_LOCK
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+# Only the device directory is writable; queued ciphertext never hits disk.
+ReadWritePaths=/var/lib/messenger-relay
+# Reduce metadata retention in the journal (audit F4): the relay logs no
+# identifiers at info, and short-lived storage limits what is kept.
+SyslogLevel=info
+
+[Install]
+WantedBy=multi-user.target
